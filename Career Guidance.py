@@ -75,11 +75,13 @@ def generate_pdf_report(scores, student_name):
         f.write(radar_img.read())
     pdf.image(img_temp_path, x=50, y=None, w=100)
 
+    
     # Save final PDF
     safe_name = "".join(c for c in student_name if c.isalnum() or c in (" ", "_")).strip()
-    file_path = f"/mnt/data/{safe_name.replace(' ', '_')}_Career_Report.pdf"
+    file_path = f"/tmp/{safe_name.replace(' ', '_')}_Career_Report.pdf"
     pdf.output(file_path)
     return file_path, radar_img
+
 
 # Streamlit UI
 st.set_page_config(page_title="Career Guidance Test", layout="centered")
