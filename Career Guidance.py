@@ -193,9 +193,62 @@ def plot_radar_chart(scores):
     buf.seek(0)
     return buf
 
+# Major and Minor Recommendation
+
+def suggest_major_minor(scores, academic_df):
+    domain_boost = {"STEM": 0, "Humanities": 0, "Creative": 0, "Business": 0}
+    if academic_df is not None:
+        for _, row in academic_df.iterrows():
+            try:
+                score9 = pd.to_numeric(row['Class 9 (%)'], errors='coerce')
+                score10 = pd.to_numeric(row['Class 10 (%)'], errors='coerce')
+                avg = np.nanmean([score9, score10])
+                subject = row['Subject'].lower()
+                if "math" in subject or "science" in subject or "computer" in subject:
+                    domain_boost["STEM"] += avg
+                elif "social" in subject:
+                    domain_boost["Humanities"] += avg
+                elif "english" in subject:
+                    domain_boost["Creative"] += avg
+                elif "business" in subject or "accounts" in subject:
+                    domain_boost["Business"] += avg
+            except:
+                continue
+
+    final_scores = {k: scores.get(k, 0) + domain_boost.get(k, 0)/20 for k in domain_boost}
+    sorted_domains = sorted(final_scores.items(), key=lambda x: x[1], reverse=True)
+    major = sorted_domains[0][0]
+    minor = sorted_domains[1][0]
+    return major, minor
+
+# Career Info
+career_data = {
+    "STEM": {
+        "careers": ["Software Engineer", "Data Analyst", "AI Researcher"],
+        "universities": ["MIT", "Stanford", "ETH Zurich", "TUM", "University of Cambridge"],
+        "entry_roles": ["Junior Developer", "Data Analyst", "Tech Consultant"]
+    },
+    "Humanities": {
+        "careers": ["Policy Analyst", "Journalist", "NGO Manager"],
+        "universities": ["Harvard", "LSE", "Sciences Po", "University of Oxford", "Ashoka University"],
+        "entry_roles": ["Research Assistant", "Content Writer", "Project Coordinator"]
+    },
+    "Creative": {
+        "careers": ["Graphic Designer", "Film Maker", "UI/UX Designer"],
+        "universities": ["Parsons School of Design", "NID", "UCLA", "RISD", "London College of Fashion"],
+        "entry_roles": ["Visual Designer", "Creative Intern", "Junior Animator"]
+    },
+    "Business": {
+        "careers": ["Investment Analyst", "Product Manager", "Entrepreneur"],
+        "universities": ["Wharton", "INSEAD", "London Business School", "IIM", "NYU Stern"],
+        "entry_roles": ["Business Analyst", "Sales Associate", "Junior Consultant"]
+    }
+}
+
 # PDF Report Generator
 
-def generate_pdf_report(scores, student_name):
+def generate_pdf_report(scores, academic_df, student_name):
+    major, minor = suggest_major_minor(scores, academic_df)
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
@@ -214,13 +267,38 @@ def generate_pdf_report(scores, student_name):
         f.write(radar_img.read())
     pdf.image(img_temp_path, x=50, y=None, w=100)
 
-    
+    pdf.ln(10)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "Academic Inclination (Based on Class 9 & 10 Marks):", ln=True)
+    pdf.set_font("Arial", '', 11)
+    if academic_df is not None:
+        for idx, row in academic_df.iterrows():
+            pdf.cell(0, 8, f"{row['Subject']}: Class 9 - {row['Class 9 (%)']}%, Class 10 - {row['Class 10 (%)']}%", ln=True)
+
+    pdf.ln(10)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, f"Suggested Major: {major}", ln=True)
+    pdf.cell(0, 10, f"Suggested Minor: {minor}", ln=True)
+
+    pdf.ln(5)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(0, 10, "Career Options:", ln=True)
+    for c in career_data[major]["careers"]:
+        pdf.cell(0, 8, f"- {c}", ln=True)
+
+    pdf.cell(0, 10, "Top Global Universities:", ln=True)
+    for u in career_data[major]["universities"]:
+        pdf.cell(0, 8, f"- {u}", ln=True)
+
+    pdf.cell(0, 10, "Entry-Level Roles:", ln=True)
+    for r in career_data[major]["entry_roles"]:
+        pdf.cell(0, 8, f"- {r}", ln=True)
+
     # Save final PDF
     safe_name = "".join(c for c in student_name if c.isalnum() or c in (" ", "_")).strip()
     file_path = f"/tmp/{safe_name.replace(' ', '_')}_Career_Report.pdf"
     pdf.output(file_path)
     return file_path, radar_img
-
 
 # Streamlit UI
 st.set_page_config(page_title="Career Guidance Test", layout="centered")
@@ -228,8 +306,15 @@ st.title("🧭 Class 9–10 Career Guidance Tool")
 st.write("Answer the questions below to receive your personalised career report.")
 
 student_name = st.text_input("Enter your name:")
-responses = {}
+academic_df = None
+st.markdown("### 📘 Enter Academic Marks (Class 9 & 10)")
+academic_df = st.data_editor(pd.DataFrame({
+    "Subject": ["Math", "Science", "English", "Social Studies", "Computer"],
+    "Class 9 (%)": ["", "", "", "", ""],
+    "Class 10 (%)": ["", "", "", "", ""]
+}), num_rows="dynamic", use_container_width=True)
 
+responses = {}
 with st.form("career_form"):
     for qid, q_data in questions.items():
         response = st.radio(q_data["question"], list(q_data["options"].keys()), key=qid)
@@ -239,7 +324,7 @@ with st.form("career_form"):
 if submitted:
     if student_name and all(responses.values()):
         scores = calculate_scores(responses)
-        report_path, radar_image = generate_pdf_report(scores, student_name)
+        report_path, radar_image = generate_pdf_report(scores, academic_df, student_name)
         with open(report_path, "rb") as f:
             st.download_button("📥 Download Your Career Report", f, file_name=os.path.basename(report_path))
         st.success("Report generated successfully!")
