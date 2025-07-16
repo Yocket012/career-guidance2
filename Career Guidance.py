@@ -70,10 +70,11 @@ def generate_pdf_report(scores, student_name):
 
     # Save radar chart
     radar_img = plot_radar_chart(scores)
-    img_path = "/mnt/data/radar_chart.png"
-    with open(img_path, "wb") as f:
-        f.write(radar_img.read())
-    pdf.image(img_path, x=50, y=None, w=100)
+    img_temp_path = "/tmp/radar_chart.png"
+    with open(img_temp_path, "wb") as f:
+    f.write(radar_img.read())
+    pdf.image(img_temp_path, x=50, y=None, w=100)
+
 
     # Save final PDF
     safe_name = "".join(c for c in student_name if c.isalnum() or c in (" ", "_")).strip()
