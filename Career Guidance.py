@@ -134,7 +134,7 @@ Your psychometric responses show a strong alignment with {top_tags[0]} and {top_
     pdf.set_text_color(80, 80, 80)
     pdf.multi_cell(0, 8, "You're on the path to a promising global career. Remember, career discovery is a journey. Use this insight to explore, experiment, and grow into your full potential. Stay curious, stay inspired.")
 
-    file_path = f"/mnt/data/{student_name.replace(' ', '_')}_Career_Report.pdf"
+    safe_name = "".join(c for c in student_name if c.isalnum() or c in (" ", "_")).rstrip() file_path = f"/mnt/data/{safe_name.replace(' ', '_')}_Career_Report.pdf"
     pdf.output(file_path)
     return file_path
 
