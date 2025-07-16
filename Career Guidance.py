@@ -442,8 +442,9 @@ for q_idx, q_id in enumerate(q_ids, start=1):
     if q_data:
         options = list(q_data["options"].keys())
         current_val = responses.get(q_id, None)
-        responses[q_id] = st.radio(f"Q{q_id}. {q_data['question']}", options, key=q_id, index=options.index(current_val) if current_val in options else -1)
-        if responses[q_id] is None:
+        index_val = options.index(current_val) if current_val in options else None
+        responses[q_id] = st.radio(f"Q{q_id}. {q_data['question']}", options, key=f"q_{q_id}", index=index_val if index_val is not None else 0, label_visibility="visible")
+        if responses[q_id] not in options:
             incomplete = True
 
 col1, col2, col3 = st.columns(3)
@@ -458,7 +459,7 @@ with col2:
         st.rerun()
 with col3:
     if st.button("Next"):
-        if any(responses[q_id] is None for q_id in q_ids):
+        if any(responses.get(q_id) not in questions[q_id]['options'].keys() for q_id in q_ids):
             st.warning("Please answer all questions on this page before continuing.")
         else:
             st.session_state.page += 1
@@ -466,7 +467,7 @@ with col3:
 
 if st.session_state.page == len(pages):
     if st.button("Generate Report"):
-        if student_name and all(responses.values()):
+        if student_name and all(responses.get(q_id) in questions[q_id]['options'] for q_id in range(1, 61)):
             scores_by_dim = calculate_scores(responses)
             chart_paths = generate_split_radar_charts(scores_by_dim)
             pdf_bytes = generate_pdf(student_name, scores_by_dim, chart_paths)
