@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from fpdf import FPDF
 import os
+import numpy as np
+
 
 def calculate_scores(responses, questions):
     score_categories = {
@@ -57,7 +59,7 @@ def generate_pdf_report(scores, academic_scores, student_name):
     academic_boost = {"STEM": 0, "Humanities": 0, "Creative": 0, "Business": 0}
     for index, row in academic_scores.iterrows():
         subject = row['Subject'].lower()
-        avg_score = (row['Class 9 (%)'] or 0 + row['Class 10 (%)'] or 0) / 2
+        score9 = pd.to_numeric(row['Class 9 (%)'], errors='coerce') score10 = pd.to_numeric(row['Class 10 (%)'], errors='coerce') avg_score = np.nanmean([score9, score10])
         if "math" in subject or "science" in subject or "computer" in subject:
             academic_boost["STEM"] += avg_score
         elif "social" in subject:
