@@ -61,9 +61,9 @@ def generate_pdf_report(scores, academic_scores, student_name):
     pdf.set_font("Arial", 'B', 13)
     pdf.cell(0, 10, "Recommended Major & Minor", ln=True)
     pdf.set_font("Arial", size=11)
-    pdf.multi_cell(0, 8, f"Based on your strengths and interests, we recommend the following course paths:
+    pdf.multi_cell(0, 8, f"""Based on your strengths and interests, we recommend the following course paths:
 Major: {major}
-Minor: {minor}")
+Minor: {minor}""")
 
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 13)
