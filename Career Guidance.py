@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
 from fpdf import FPDF
-import os
 import numpy as np
 import matplotlib.pyplot as plt
 from io import BytesIO
+import tempfile
+import os
 
 # Define 60 psychometric questions (10 per dimension)
 questions = {
@@ -321,7 +322,6 @@ questions = {
         "Balancing or budgeting": ["Numerical"]}}
 }
 
-# Define scoring weight per dimension
 weights = {
     "Personality": 1.0,
     "Learning Style": 0.9,
@@ -331,7 +331,6 @@ weights = {
     "Aptitude": 1.2
 }
 
-# Categories for radar chart split
 dimension_map = {
     "Personality": list(range(1, 11)),
     "Learning Style": list(range(11, 21)),
@@ -341,7 +340,6 @@ dimension_map = {
     "Aptitude": list(range(51, 61))
 }
 
-# Calculate scores from answers
 def calculate_scores(responses):
     scores_by_dim = {}
     for dim, q_ids in dimension_map.items():
@@ -354,14 +352,11 @@ def calculate_scores(responses):
         scores_by_dim[dim] = dim_scores
     return scores_by_dim
 
-# Radar chart function for split charts
 def generate_split_radar_charts(scores_by_dim):
     charts = []
-    os.makedirs("/mnt/data", exist_ok=True)  # Ensure directory exists
-
     for dimension, scores in scores_by_dim.items():
         if not scores:
-            continue  # Skip empty charts
+            continue
 
         labels = list(scores.keys())
         values = list(scores.values())
@@ -377,17 +372,12 @@ def generate_split_radar_charts(scores_by_dim):
         ax.set_xticklabels(labels)
         ax.set_title(dimension)
 
-        chart_path = f"/mnt/data/{dimension}_radar.png"
-        try:
-            plt.savefig(chart_path)
-            charts.append(chart_path)
-        except Exception as e:
-            print(f"Error saving radar chart for {dimension}: {e}")
+        tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        plt.savefig(tmpfile.name)
+        charts.append(tmpfile.name)
         plt.close(fig)
-
     return charts
 
-# Summary generation
 def generate_summary(scores_by_dim):
     summary = ""
     for dim, score_map in scores_by_dim.items():
@@ -396,27 +386,24 @@ def generate_summary(scores_by_dim):
             summary += f"\n- {dim}: Dominant trait = {top_area}"
     return summary
 
-# PDF generator
 def generate_pdf(student_name, scores_by_dim, chart_paths):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     pdf.cell(200, 10, txt=f"Career Report: {student_name}", ln=True, align='C')
-
     pdf.ln(5)
     pdf.multi_cell(0, 10, txt="Your psychometric analysis across 6 core dimensions shows the following dominant traits:")
     summary = generate_summary(scores_by_dim)
     for line in summary.strip().split('\n'):
         pdf.multi_cell(0, 8, txt=line)
-
     for path in chart_paths:
         pdf.add_page()
         pdf.image(path, x=30, y=30, w=150)
 
-    safe_name = "_".join(student_name.split())
-    file_path = f"/mnt/data/{safe_name}_Career_Report.pdf"
-    pdf.output(file_path)
-    return file_path
+    output_buffer = BytesIO()
+    pdf.output(output_buffer)
+    output_buffer.seek(0)
+    return output_buffer
 
 # Streamlit app
 st.title("Career Guidance Psychometric Test")
@@ -433,9 +420,7 @@ if st.button("Generate Report"):
     if student_name and all(responses.values()):
         scores_by_dim = calculate_scores(responses)
         chart_paths = generate_split_radar_charts(scores_by_dim)
-        pdf_path = generate_pdf(student_name, scores_by_dim, chart_paths)
-        with open(pdf_path, "rb") as f:
-            st.download_button("Download Your Career Report", f, file_name=os.path.basename(pdf_path))
+        pdf_bytes = generate_pdf(student_name, scores_by_dim, chart_paths)
+        st.download_button("Download Your Career Report", pdf_bytes, file_name=f"{student_name.replace(' ', '_')}_Career_Report.pdf")
     else:
         st.warning("Please answer all questions and provide your name.")
-
