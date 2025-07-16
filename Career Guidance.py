@@ -353,7 +353,7 @@ def calculate_scores(responses):
     return scores_by_dim
 
 def generate_split_radar_charts(scores_by_dim):
-    charts = []
+    charts = {}
     for dimension, scores in scores_by_dim.items():
         if not scores:
             continue
@@ -374,7 +374,7 @@ def generate_split_radar_charts(scores_by_dim):
 
         tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
         plt.savefig(tmpfile.name)
-        charts.append(tmpfile.name)
+        charts[dimension] = tmpfile.name
         plt.close(fig)
     return charts
 
@@ -396,9 +396,13 @@ def generate_pdf(student_name, scores_by_dim, chart_paths):
     summary = generate_summary(scores_by_dim)
     for line in summary.strip().split('\n'):
         pdf.multi_cell(0, 8, txt=line)
-    for path in chart_paths:
-        pdf.add_page()
-        pdf.image(path, x=30, y=30, w=150)
+
+    for dim in dimension_map.keys():
+        if dim in chart_paths:
+            pdf.add_page()
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 10, f"{dim} Profile", ln=True, align='C')
+            pdf.image(chart_paths[dim], x=30, y=30, w=150)
 
     output_buffer = BytesIO()
     pdf_output = pdf.output(dest='S').encode('latin1')
