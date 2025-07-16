@@ -357,12 +357,18 @@ def calculate_scores(responses):
 # Radar chart function for split charts
 def generate_split_radar_charts(scores_by_dim):
     charts = []
+    os.makedirs("/mnt/data", exist_ok=True)  # Ensure directory exists
+
     for dimension, scores in scores_by_dim.items():
+        if not scores:
+            continue  # Skip empty charts
+
         labels = list(scores.keys())
         values = list(scores.values())
         angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
         values += values[:1]
         angles += angles[:1]
+
         fig, ax = plt.subplots(figsize=(5, 5), subplot_kw=dict(polar=True))
         ax.plot(angles, values, 'o-', linewidth=2)
         ax.fill(angles, values, alpha=0.25)
@@ -370,10 +376,15 @@ def generate_split_radar_charts(scores_by_dim):
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels(labels)
         ax.set_title(dimension)
+
         chart_path = f"/mnt/data/{dimension}_radar.png"
-        plt.savefig(chart_path)
-        charts.append(chart_path)
+        try:
+            plt.savefig(chart_path)
+            charts.append(chart_path)
+        except Exception as e:
+            print(f"Error saving radar chart for {dimension}: {e}")
         plt.close(fig)
+
     return charts
 
 # Summary generation
@@ -427,3 +438,4 @@ if st.button("Generate Report"):
             st.download_button("Download Your Career Report", f, file_name=os.path.basename(pdf_path))
     else:
         st.warning("Please answer all questions and provide your name.")
+
