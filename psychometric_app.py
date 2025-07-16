@@ -1,193 +1,264 @@
-import streamlit as st
+"import streamlit as st
 import pandas as pd
+import ast
 
-# --- DATA LOADING (Cached for performance) ---
+# --- CONFIGURATION ---
+st.set_page_config(
+    page_title=""Career Guidance Psychometric Test"",
+    page_icon=""🧠"",
+    layout=""centered"",
+)
+
+# --- DATA LOADING ---
 @st.cache_data
-def load_data():
-    """Loads all necessary CSV files into dataframes."""
+def load_questions_data():
+    """"""
+    Loads and preprocesses the questions from the CSV file.
+    The @st.cache_data decorator ensures this function only runs once.
+    """"""
     try:
-        df_questions = pd.read_csv("30-Questions_test.xlsx - questions_set.csv")
-        df_weights = pd.read_csv("30-Questions_test.xlsx - weights_set.csv")
-        df_stem = pd.read_csv("Career Guidance Test.xlsx - stem_set.csv")
-        df_humanities = pd.read_csv("Career Guidance Test.xlsx - humanities_set.csv")
-        df_arts = pd.read_csv("Career Guidance Test.xlsx - arts_set.csv")
-        return df_questions, df_weights, df_stem, df_humanities, df_arts
-    except FileNotFoundError as e:
-        st.error(f"Error loading data files: {e}. Please make sure all CSV files are in the same folder as the app.py script.")
-        return None, None, None, None, None
+        df = pd.read_csv('30-Question_Psychometric_Test_with_Themes.csv')
+        # Convert string representations of dictionaries to actual dictionaries
+        for col in ['Weights A', 'Weights B', 'Weights C', 'Weights D']:
+            df[col] = df[col].apply(ast.literal_eval)
+        return df
+    except FileNotFoundError:
+        st.error(""The question file '30-Question_Psychometric_Test_with_Themes.csv' was not found."")
+        st.stop()
+    except Exception as e:
+        st.error(f""An error occurred while loading the questions: {e}"")
+        st.stop()
 
-# --- HELPER FUNCTIONS ---
-def determine_subject_interest(academic_scores):
-    """Determines the student's primary subject interest."""
-    stem_subjects = ["Maths", "Physics", "Chemistry", "Biology", "Statistics", "Computer Science"]
-    humanities_subjects = ["History", "Civics", "Geography", "Economics", "English"]
+# --- REPORT GENERATION ---
+def generate_report(user_data, df):
+    """"""
+    Analyzes the user's answers and generates a detailed report.
+    """"""
+    scores = {
+        'Career Lines': {},
+        'Role Types': {}
+    }
 
-    stem_score = sum(score for subject, score in academic_scores.items() if subject in stem_subjects)
-    humanities_score = sum(score for subject, score in academic_scores.items() if subject in humanities_subjects)
+    # Define all possible categories to initialize scores
+    career_lines = ['Linear', 'Horizontal', 'Diagonal', 'Non-linear']
+    role_types = ['Specialist', 'Generalist', 'Creative', 'Entrepreneurial', 'Administrative',
+                  'Technical', 'Human Resources', 'Sales/Marketing', 'Customer Service', 'Leadership', 'Other']
 
-    if stem_score > humanities_score:
-        return "STEM"
-    else:
-        return "Humanities"
-    # Note: The 'Art' category from the files is not used here as the subject list doesn't contain art subjects.
-    # This can be expanded if more subjects are added.
+    for line in career_lines:
+        scores['Career Lines'][line] = 0
+    for r_type in role_types:
+        scores['Role Types'][r_type] = 0
 
-def calculate_results():
-    """Calculates the final results from MCQ answers."""
-    df_questions, df_weights, _, _, _ = load_data()
+    # Calculate scores based on user answers
+    for q_idx, answer_key in user_data[""answers""].items():
+        if answer_key: # Ensure an answer was given
+            # The answer_key is like 'Option A', 'Option B', etc.
+            # We need to get the corresponding weights column, e.g., 'Weights A'
+            weights_col = f""Weights {answer_key.split(' ')[-1]}""
+            weights = df.loc[q_idx, weights_col]
+            for key, value in weights.items():
+                if key in scores['Career Lines']:
+                    scores['Career Lines'][key] += value
+                if key in scores['Role Types']:
+                    scores['Role Types'][key] += value
 
-    role_types = ['Creative', 'Specialist', 'Generalist', 'Administrative',
-                  'Entrepreneurial', 'Customer Service', 'Technical',
-                  'Human Resources', 'Sales/Marketing', 'Leadership', 'Other']
-    career_lines = ['Linear', 'Non-linear', 'Diagonal', 'Horizontal']
+    # Start building the report string
+    report = f""Psychometric Test Report for: {user_data['name']}\n""
+    report += ""=""*40 + ""\n\n""
 
-    role_type_scores = {role: 0 for role in role_types}
-    career_line_scores = {line: 0 for line in career_lines}
+    # Career Line Analysis
+    report += ""I. CAREER LINE ANALYSIS (Progression Style):\n""
+    sorted_career = sorted(scores['Career Lines'].items(), key=lambda item: item[1], reverse=True)
+    for career, score in sorted_career:
+        report += f""- {career}: {score} points\n""
+    report += f""\nYour responses suggest a preference for a **{sorted_career[0][0]}** career progression. This path is characterized by...""
+    # You can add descriptions for each career line here
+    report += ""\n\n""
 
-    # Retrieve answers from session state
-    for i in range(len(df_questions)):
-        answer = st.session_state[f'q_{i}']
-        # The answer format from st.radio is "A. {Option Text}". We only need "A".
-        answer_letter = answer.split('.')[0]
+    # Role Type Analysis
+    report += ""II. ROLE TYPE ANALYSIS (Preferred Work Environment):\n""
+    sorted_roles = sorted(scores['Role Types'].items(), key=lambda item: item[1], reverse=True)
+    for role, score in sorted_roles:
+        report += f""- {role}: {score} points\n""
+    report += f""\nYour dominant role type appears to be **{sorted_roles[0][0]}**. This indicates you might thrive in roles that are...""
+    # You can add descriptions for each role type here
+    report += ""\n\n""
 
-        weights_str = df_weights.loc[i, f'Option {answer_letter} Weights']
-        if isinstance(weights_str, str):
-            parts = weights_str.split(', ')
-            for part in parts:
-                key, value = part.split(' = ')
-                if key in role_type_scores:
-                    role_type_scores[key] += int(value)
-                elif key in career_line_scores:
-                    career_line_scores[key] += int(value)
+    # Academic Performance
+    report += ""III. ACADEMIC PERFORMANCE:\n""
+    has_marks = False
+    for i in range(5):
+        subject = user_data['subjects'][i]
+        mark = user_data['marks'][i]
+        if subject and mark:
+            report += f""- {subject}: {mark}\n""
+            has_marks = True
+    if not has_marks:
+        report += ""No academic marks were provided.\n""
 
-    st.session_state.role_type = max(role_type_scores, key=role_type_scores.get)
-    st.session_state.career_line = max(career_line_scores, key=career_line_scores.get)
+    report += ""\n\n--- END OF REPORT ---\n""
+    return report
 
+# --- UI RENDERING FUNCTIONS ---
 
-# --- MAIN APP ---
+def update_answer(q_idx, option_map):
+    """"""Callback function to update the user's answer in session state.""""""
+    widget_key = f""q_{q_idx}""
+    answer_text = st.session_state[widget_key] # Get the selected value from the widget's state
+    
+    if answer_text:
+        # Find which option key ('Option A', 'Option B', etc.) the answer text corresponds to
+        selected_option_key = [k for k, v in option_map.items() if v == answer_text][0]
+        # Store this key in our user_data dictionary
+        st.session_state.user_data[""answers""][q_idx] = selected_option_key
 
-# Load dataframes
-df_questions, df_weights, df_stem, df_humanities, df_arts = load_data()
+def render_welcome_page():
+    st.title(""Welcome to the Career Guidance Test"")
+    st.write(""""""
+    This test is designed to help understand your psychology and aspirations to correlate them with potential career paths.
+    Please answer all questions thoughtfully.
+    """""")
+    st.markdown(""---"")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button(""I am a Student""):
+            st.session_state.page = ""details""
+            st.rerun()
+    with col2:
+        if st.button(""I am a Parent""):
+            st.session_state.page = ""details""
+            st.rerun()
 
-# Initialize session state to manage steps
-if 'step' not in st.session_state:
-    st.session_state.step = 1
-    st.session_state.user_data = {}
-
-st.title("Psychometric Career Guidance Test")
-
-# --- STEP 1: Personal Info ---
-if st.session_state.step == 1:
-    st.header("Step 1: Personal Information")
-    with st.form("personal_info_form"):
-        name = st.text_input("Enter your full name", key="name")
-        number = st.text_input("Enter your 10-digit mobile number", key="number", max_chars=10)
-        submitted = st.form_submit_button("Next")
+def render_details_page():
+    st.title(""Student Details"")
+    with st.form(""details_form""):
+        name = st.text_input(""Student's Name"", st.session_state.user_data.get('name', ''))
+        contact = st.text_input(""Contact Number (Optional)"", st.session_state.user_data.get('contact', ''))
+        submitted = st.form_submit_button(""Start Test"")
         if submitted:
-            if name and number.isdigit() and len(number) == 10:
+            if not name:
+                st.warning(""Please enter a name to proceed."")
+            else:
                 st.session_state.user_data['name'] = name
-                st.session_state.user_data['number'] = number
-                st.session_state.step = 2
-                st.experimental_rerun()
-            else:
-                st.error("Please enter a valid name and a 10-digit mobile number.")
+                st.session_state.user_data['contact'] = contact
+                st.session_state.page = ""questions""
+                st.rerun()
+    if st.button(""Back""):
+        st.session_state.page = ""welcome""
+        st.rerun()
 
-# --- STEP 2: Academic Scores ---
-if st.session_state.step == 2:
-    st.header("Step 2: Academic Scores")
-    st.write("Please select your top 5 subjects and enter your scores (out of 100).")
-    subjects = ["Maths", "Physics", "Chemistry", "Biology", "History", "Civics",
-                "Geography", "Economics", "Statistics", "Computer Science", "English"]
-    with st.form("academic_scores_form"):
-        selected_subjects_scores = {}
-        cols = st.columns(2)
+
+def render_question_pages(df):
+    theme = st.session_state.themes[st.session_state.current_theme_index]
+    st.title(f""Section {st.session_state.current_theme_index + 1}: {theme}"")
+
+    questions_in_theme = df[df['Theme'] == theme]
+
+    for idx, row in questions_in_theme.iterrows():
+        st.markdown(f""**{row['Question']}**"")
+        options = {f""Option {opt}"": row[f'Option {opt}'] for opt in ['A', 'B', 'C', 'D']}
+        
+        # Using on_change callback to update state safely
+        st.radio(
+            ""Select an option:"",
+            options.values(),
+            key=f""q_{idx}"",
+            label_visibility=""collapsed"",
+            on_change=update_answer,
+            args=(idx, options) # Pass necessary arguments to the callback
+        )
+
+    st.markdown(""---"")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.session_state.current_theme_index > 0:
+            if st.button(""Back""):
+                st.session_state.current_theme_index -= 1
+                st.rerun()
+    with col2:
+        if st.session_state.current_theme_index < len(st.session_state.themes) - 1:
+            if st.button(""Next""):
+                st.session_state.current_theme_index += 1
+                st.rerun()
+        else:
+            if st.button(""Proceed to Final Step""):
+                st.session_state.page = ""marks""
+                st.rerun()
+
+def render_marks_page():
+    st.title(""Final Step: Academic Performance"")
+    st.write(""Please enter your top 5 subjects and the marks obtained (e.g., percentage, grade)."")
+
+    with st.form(""marks_form""):
         for i in range(5):
-            subject = cols[0].selectbox(f"Select Subject {i+1}", options=subjects, key=f"sub_{i}")
-            score = cols[1].number_input(f"Score for Subject {i+1}", min_value=0, max_value=100, key=f"score_{i}")
-            selected_subjects_scores[subject] = score
-
-        submitted = st.form_submit_button("Next")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.session_state.user_data['subjects'][i] = st.text_input(f""Subject {i+1}"", key=f""sub_{i}"")
+            with col2:
+                st.session_state.user_data['marks'][i] = st.text_input(f""Marks for Subject {i+1}"", key=f""mark_{i}"")
+        
+        submitted = st.form_submit_button(""Generate My Report"")
         if submitted:
-            # Check for duplicate subjects
-            if len(selected_subjects_scores) != 5:
-                st.error("Please select 5 unique subjects.")
-            else:
-                st.session_state.user_data['academic_scores'] = selected_subjects_scores
-                st.session_state.step = 3
-                st.experimental_rerun()
+            st.session_state.page = ""report""
+            st.rerun()
 
-# --- STEP 3: MCQ Test ---
-if st.session_state.step == 3 and df_questions is not None:
-    st.header("Step 3: Psychometric Test")
-    st.write("Please answer the following questions honestly.")
-    with st.form("mcq_form"):
-        for index, row in df_questions.iterrows():
-            st.subheader(f"Q{index+1}: {row['Question']}")
-            options = [
-                f"A. {row['Option A']}",
-                f"B. {row['Option B']}",
-                f"C. {row['Option C']}",
-                f"D. {row['Option D']}"
-            ]
-            st.radio("Your choice:", options, key=f'q_{index}')
-            st.markdown("---") # Visual separator
+    if st.button(""Back to Questions""):
+        st.session_state.page = ""questions""
+        st.rerun()
 
-        submitted = st.form_submit_button("Calculate My Results")
-        if submitted:
-            calculate_results()
-            st.session_state.step = 4
-            st.experimental_rerun()
+def render_report_page(df):
+    st.title(""Your Personalized Career Report"")
+    
+    with st.spinner(""Analyzing your responses and generating your report...""):
+        report_str = generate_report(st.session_state.user_data, df)
+        st.session_state.report = report_str
 
-# --- STEP 4: Show Report ---
-if st.session_state.step == 4:
-    st.header("Your Personalized Career Guidance Report")
-    st.balloons()
+    st.text_area(""Report"", st.session_state.report, height=400)
+    
+    st.download_button(
+        label=""Download Report"",
+        data=st.session_state.report,
+        file_name=f""Career_Report_{st.session_state.user_data.get('name', 'student')}.txt"",
+        mime=""text/plain""
+    )
 
-    # Retrieve results
-    name = st.session_state.user_data.get('name', 'Student')
-    role_type = st.session_state.get('role_type')
-    career_line = st.session_state.get('career_line')
-    academic_scores = st.session_state.user_data.get('academic_scores')
+    if st.button(""Start Over""):
+        # Reset session state completely
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.rerun()
 
-    if not all([role_type, career_line, academic_scores]):
-        st.error("Something went wrong during calculation. Please try again.")
-        st.button("Start Over", on_click=lambda: st.session_state.clear())
-    else:
-        subject_interest = determine_subject_interest(academic_scores)
 
-        st.success(f"Hello {name}, based on your answers, here is your profile:")
-        st.write(f"**Your Academic Interest Area:** {subject_interest}")
-        st.write(f"**Your Dominant Role Type:** {role_type}")
-        st.write(f"**Your Natural Career Line:** {career_line}")
+# --- MAIN APP LOGIC ---
+def main():
+    # Load data
+    df = load_questions_data()
 
-        # Select correct dataframe
-        if subject_interest == "STEM":
-            df_guidance = df_stem
-        elif subject_interest == "Humanities":
-            df_guidance = df_humanities
-        else:
-            df_guidance = df_arts
+    # Initialize session state variables
+    if 'page' not in st.session_state:
+        st.session_state.page = ""welcome""
+        st.session_state.themes = df['Theme'].unique().tolist()
+        st.session_state.current_theme_index = 0
+        st.session_state.user_data = {
+            ""name"": """",
+            ""contact"": """",
+            ""answers"": {},
+            ""subjects"": [""""] * 5,
+            ""marks"": [""""] * 5
+        }
+        st.session_state.report = """"
 
-        # Find the report
-        report = df_guidance[
-            (df_guidance['Role Type'] == role_type) &
-            (df_guidance['Career Line'] == career_line)
-        ]
+    # Page routing
+    if st.session_state.page == ""welcome"":
+        render_welcome_page()
+    elif st.session_state.page == ""details"":
+        render_details_page()
+    elif st.session_state.page == ""questions"":
+        render_question_pages(df)
+    elif st.session_state.page == ""marks"":
+        render_marks_page()
+    elif st.session_state.page == ""report"":
+        render_report_page(df)
 
-        if not report.empty:
-            report_data = report.iloc[0]
-            st.info(f"**A message for you:** {report_data['Message']}")
-            st.markdown("---")
-            st.subheader("Career & Education Recommendations")
-            st.markdown(f"**Example Career Options:** {report_data['Example Career Options']}")
-            st.markdown(f"**Potential Companies to Aim For:** {report_data['Potential Companies to Aim For']}")
-            st.markdown(f"**Possible Entry-Level Designations:** {report_data['Entry-Level Designations']}")
-            st.markdown(f"**Top Universities in India:** {report_data['Top Universities India']}")
-            st.markdown(f"**Top Universities Abroad:** {report_data['Top Universities  Globally']}") # Corrected column name
-        else:
-            st.warning("Could not find a specific career recommendation for your unique combination of results.")
-            st.write("This may indicate a very special profile. We encourage you to explore interdisciplinary fields that blend your interests and strengths.")
-
-        if st.button("Take the Test Again"):
-            st.session_state.clear()
-            st.experimental_rerun()
+if __name__ == ""__main__"":
+    main()"
