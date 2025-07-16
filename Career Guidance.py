@@ -401,7 +401,8 @@ def generate_pdf(student_name, scores_by_dim, chart_paths):
         pdf.image(path, x=30, y=30, w=150)
 
     output_buffer = BytesIO()
-    pdf.output(output_buffer)
+    pdf_output = pdf.output(dest='S').encode('latin1')
+    output_buffer.write(pdf_output)
     output_buffer.seek(0)
     return output_buffer
 
