@@ -446,6 +446,3 @@ else:
             st.download_button("Download Your Career Report", pdf_bytes, file_name=f"{student_name.replace(' ', '_')}_Career_Report.pdf")
         else:
             st.warning("Please answer all questions and provide your name.")
-            st.download_button("Download Your Career Report", pdf_bytes, file_name=f"{student_name.replace(' ', '_')}_Career_Report.pdf")
-        else:
-            st.warning("Please answer all questions and provide your name.")
