@@ -413,15 +413,36 @@ st.markdown("Answer the following 60 questions to receive a personalized career 
 student_name = st.text_input("Enter your full name:")
 responses = {}
 
-for q_id, q_data in questions.items():
-    options = list(q_data["options"].keys())
-    responses[q_id] = st.radio(q_data["question"], options, key=q_id)
+pages = [
+    ("Personality", list(range(1, 11))),
+    ("Learning Style", list(range(11, 21))),
+    ("Behaviour", list(range(21, 31))),
+    ("Emotional", list(range(31, 41))),
+    ("Interest", list(range(41, 51))),
+    ("Aptitude", list(range(51, 61)))
+]
 
-if st.button("Generate Report"):
-    if student_name and all(responses.values()):
-        scores_by_dim = calculate_scores(responses)
-        chart_paths = generate_split_radar_charts(scores_by_dim)
-        pdf_bytes = generate_pdf(student_name, scores_by_dim, chart_paths)
-        st.download_button("Download Your Career Report", pdf_bytes, file_name=f"{student_name.replace(' ', '_')}_Career_Report.pdf")
-    else:
-        st.warning("Please answer all questions and provide your name.")
+if 'page' not in st.session_state:
+    st.session_state.page = 0
+
+if st.session_state.page < len(pages):
+    dim_name, q_ids = pages[st.session_state.page]
+    st.header(f"{dim_name} Questions")
+    for q_id in q_ids:
+        q_data = questions.get(q_id)
+        if q_data:
+            options = list(q_data["options"].keys())
+            responses[q_id] = st.radio(q_data["question"], options, key=q_id)
+
+    if st.button("Next"):
+        st.session_state.page += 1
+        st.experimental_rerun()
+else:
+    if st.button("Generate Report"):
+        if student_name and all(responses.values()):
+            scores_by_dim = calculate_scores(responses)
+            chart_paths = generate_split_radar_charts(scores_by_dim)
+            pdf_bytes = generate_pdf(student_name, scores_by_dim, chart_paths)
+            st.download_button("Download Your Career Report", pdf_bytes, file_name=f"{student_name.replace(' ', '_')}_Career_Report.pdf")
+        else:
+            st.warning("Please answer all questions and provide your name.")
