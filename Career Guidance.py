@@ -88,7 +88,7 @@ def generate_pdf_report(scores, academic_scores, student_name):
     pdf.set_font("Arial", 'I', 11)
     pdf.multi_cell(0, 10, "You're on the path to a promising global career. Continue exploring your strengths and building real-world exposure. Your journey has just begun!")
 
-    file_path = f"/mnt/data/{student_name.replace(' ', '_')}_Career_Report.pdf"
+    file_path = f"{student_name.replace(' ', '_')}_Career_Report.pdf"
     pdf.output(file_path)
     return file_path
 
