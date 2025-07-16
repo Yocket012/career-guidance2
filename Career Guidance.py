@@ -249,6 +249,7 @@ questions = {
 }
 
 responses = {}
+for q_no, q_data in questions.items():
     option_labels = list(q_data["options"].keys())
     responses[q_no] = st.radio(q_data["question"], option_labels, key=f"q{q_no}")
 
