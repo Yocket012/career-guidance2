@@ -172,7 +172,7 @@ def calculate_scores(responses):
 
 # Radar Chart Generator
 
-def plot_radar_chart(scores):
+def plot_radar_chart(scores, title="Radar Chart"):
     categories = list(scores.keys())
     values = list(scores.values())
     N = len(categories)
@@ -186,6 +186,7 @@ def plot_radar_chart(scores):
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(categories)
     ax.set_yticklabels([])
+    plt.title(title)
 
     buf = BytesIO()
     plt.savefig(buf, format="png")
@@ -219,7 +220,7 @@ def suggest_major_minor(scores, academic_df):
     sorted_domains = sorted(final_scores.items(), key=lambda x: x[1], reverse=True)
     major = sorted_domains[0][0]
     minor = sorted_domains[1][0]
-    return major, minor
+    return major, minor, domain_boost
 
 # Career Info
 career_data = {
@@ -248,7 +249,7 @@ career_data = {
 # PDF Report Generator
 
 def generate_pdf_report(scores, academic_df, student_name):
-    major, minor = suggest_major_minor(scores, academic_df)
+    major, minor, academic_scores = suggest_major_minor(scores, academic_df)
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
@@ -260,54 +261,44 @@ def generate_pdf_report(scores, academic_df, student_name):
     for trait, score in scores.items():
         pdf.cell(0, 8, f"- {trait}: {score}", ln=True)
 
-    # Save radar chart to temp path for PDF
-    radar_img = plot_radar_chart(scores)
-    img_temp_path = "/tmp/radar_chart.png"
-    with open(img_temp_path, "wb") as f:
+    radar_img = plot_radar_chart(scores, "Psychometric Radar Chart")
+    img_path_1 = "/tmp/radar_chart1.png"
+    with open(img_path_1, "wb") as f:
         f.write(radar_img.read())
-    pdf.image(img_temp_path, x=50, y=None, w=100)
+    pdf.image(img_path_1, x=50, y=None, w=100)
 
-    pdf.ln(10)
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "Academic Inclination (Based on Class 9 & 10 Marks):", ln=True)
-    pdf.set_font("Arial", '', 11)
-    if academic_df is not None:
-        for idx, row in academic_df.iterrows():
-            pdf.cell(0, 8, f"{row['Subject']}: Class 9 - {row['Class 9 (%)']}%, Class 10 - {row['Class 10 (%)']}%", ln=True)
+    radar_img2 = plot_radar_chart(academic_scores, "Academic Inclination Chart")
+    img_path_2 = "/tmp/radar_chart2.png"
+    with open(img_path_2, "wb") as f:
+        f.write(radar_img2.read())
+    pdf.image(img_path_2, x=50, y=None, w=100)
 
     pdf.ln(10)
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, f"Suggested Major: {major}", ln=True)
     pdf.cell(0, 10, f"Suggested Minor: {minor}", ln=True)
 
-    pdf.ln(5)
     pdf.set_font("Arial", '', 11)
-    pdf.cell(0, 10, "Career Options:", ln=True)
+    pdf.cell(0, 10, "Top Careers:", ln=True)
     for c in career_data[major]["careers"]:
         pdf.cell(0, 8, f"- {c}", ln=True)
-
-    pdf.cell(0, 10, "Top Global Universities:", ln=True)
+    pdf.cell(0, 10, "Top Universities:", ln=True)
     for u in career_data[major]["universities"]:
         pdf.cell(0, 8, f"- {u}", ln=True)
-
-    pdf.cell(0, 10, "Entry-Level Roles:", ln=True)
+    pdf.cell(0, 10, "Entry Roles:", ln=True)
     for r in career_data[major]["entry_roles"]:
         pdf.cell(0, 8, f"- {r}", ln=True)
 
-    # Save final PDF
     safe_name = "".join(c for c in student_name if c.isalnum() or c in (" ", "_")).strip()
     file_path = f"/tmp/{safe_name.replace(' ', '_')}_Career_Report.pdf"
     pdf.output(file_path)
-    return file_path, radar_img
+    return file_path, img_path_1, img_path_2
 
 # Streamlit UI
 st.set_page_config(page_title="Career Guidance Test", layout="centered")
 st.title("🧭 Class 9–10 Career Guidance Tool")
-st.write("Answer the questions below to receive your personalised career report.")
 
 student_name = st.text_input("Enter your name:")
-academic_df = None
-st.markdown("### 📘 Enter Academic Marks (Class 9 & 10)")
 academic_df = st.data_editor(pd.DataFrame({
     "Subject": ["Math", "Science", "English", "Social Studies", "Computer"],
     "Class 9 (%)": ["", "", "", "", ""],
@@ -324,10 +315,10 @@ with st.form("career_form"):
 if submitted:
     if student_name and all(responses.values()):
         scores = calculate_scores(responses)
-        report_path, radar_image = generate_pdf_report(scores, academic_df, student_name)
+        report_path, radar_img_1, radar_img_2 = generate_pdf_report(scores, academic_df, student_name)
         with open(report_path, "rb") as f:
-            st.download_button("📥 Download Your Career Report", f, file_name=os.path.basename(report_path))
-        st.success("Report generated successfully!")
-        st.image(radar_image, caption="Your Career Profile")
+            st.download_button("📥 Download Career Report", f, file_name=os.path.basename(report_path))
+        st.image(radar_img_1, caption="Psychometric Radar Chart")
+        st.image(radar_img_2, caption="Academic Inclination Chart")
     else:
-        st.error("Please enter your name and complete all questions.")
+        st.error("Please fill all fields to proceed.")
