@@ -68,20 +68,18 @@ def generate_pdf_report(scores, student_name):
     for trait, score in scores.items():
         pdf.cell(0, 8, f"- {trait}: {score}", ln=True)
 
-    # Save radar chart
+    # Save radar chart to temp path for PDF
     radar_img = plot_radar_chart(scores)
     img_temp_path = "/tmp/radar_chart.png"
-    
-with open(img_temp_path, "wb") as f:
-    f.write(radar_img.read())
+    with open(img_temp_path, "wb") as f:
+        f.write(radar_img.read())
     pdf.image(img_temp_path, x=50, y=None, w=100)
-
 
     # Save final PDF
     safe_name = "".join(c for c in student_name if c.isalnum() or c in (" ", "_")).strip()
     file_path = f"/mnt/data/{safe_name.replace(' ', '_')}_Career_Report.pdf"
     pdf.output(file_path)
-    return file_path
+    return file_path, radar_img
 
 # Streamlit UI
 st.set_page_config(page_title="Career Guidance Test", layout="centered")
@@ -100,10 +98,10 @@ with st.form("career_form"):
 if submitted:
     if student_name and all(responses.values()):
         scores = calculate_scores(responses)
-        report_path = generate_pdf_report(scores, student_name)
+        report_path, radar_image = generate_pdf_report(scores, student_name)
         with open(report_path, "rb") as f:
             st.download_button("📥 Download Your Career Report", f, file_name=os.path.basename(report_path))
         st.success("Report generated successfully!")
-        st.image("/mnt/data/radar_chart.png", caption="Your Career Profile")
+        st.image(radar_image, caption="Your Career Profile")
     else:
         st.error("Please enter your name and complete all questions.")
