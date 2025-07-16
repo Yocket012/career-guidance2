@@ -80,7 +80,7 @@ def generate_pdf_report(scores, academic_scores, student_name):
     pdf.set_font("Arial", 'B', 13)
     pdf.cell(0, 10, "Recommended Major & Minor", ln=True)
     pdf.set_font("Arial", size=11)
-    pdf.multi_cell(0, 8, f"""Based on your strengths and interests — drawn from both your responses and academic subject scores — we recommend this personalised academic path:
+    recommendation_text = f"""Based on your strengths and interests - drawn from both your responses and academic subject scores - we recommend this personalised academic path:
 
 Major: {major}
 Minor: {minor}
@@ -93,7 +93,10 @@ Your psychometric responses show a strong alignment with {top_tags[0]} and {top_
 - Creative Boost: {academic_boost['Creative']:.1f}
 - Business Boost: {academic_boost['Business']:.1f}
 
-...indicates that you are well-prepared to explore this combination at a deeper academic level.""")
+...indicates that you are well-prepared to explore this combination at a deeper academic level."""
+
+pdf.multi_cell(0, 8, recommendation_text)
+
 
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 13)
