@@ -437,14 +437,18 @@ dim_name, q_ids = pages[st.session_state.page]
 st.header(f"{dim_name} Questions")
 
 incomplete = False
-for q_idx, q_id in enumerate(q_ids, start=1):
+for q_id in q_ids:
     q_data = questions.get(q_id)
     if q_data:
         options = list(q_data["options"].keys())
         current_val = responses.get(q_id, None)
-        index_val = options.index(current_val) if current_val in options else None
-        responses[q_id] = st.radio(f"Q{q_id}. {q_data['question']}", options, key=f"q_{q_id}", index=index_val if index_val is not None else 0, label_visibility="visible")
-        if responses[q_id] not in options:
+        responses[q_id] = st.radio(
+            f"Q{q_id}. {q_data['question']}",
+            options,
+            key=f"q_{q_id}",
+            index=None,
+        )
+        if responses[q_id] is None:
             incomplete = True
 
 col1, col2, col3 = st.columns(3)
@@ -459,7 +463,7 @@ with col2:
         st.rerun()
 with col3:
     if st.button("Next"):
-        if any(responses.get(q_id) not in questions[q_id]['options'].keys() for q_id in q_ids):
+        if any(responses.get(q_id) is None for q_id in q_ids):
             st.warning("Please answer all questions on this page before continuing.")
         else:
             st.session_state.page += 1
