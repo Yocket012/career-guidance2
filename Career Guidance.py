@@ -72,7 +72,7 @@ def generate_pdf_report(scores, student_name):
     radar_img = plot_radar_chart(scores)
     img_temp_path = "/tmp/radar_chart.png"
     
-    with open(img_temp_path, "wb") as f:
+with open(img_temp_path, "wb") as f:
     f.write(radar_img.read())
     pdf.image(img_temp_path, x=50, y=None, w=100)
 
