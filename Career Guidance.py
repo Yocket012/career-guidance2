@@ -19,6 +19,93 @@ def calculate_scores(responses, questions):
 def generate_pdf_report(scores, academic_scores, student_name):
     pdf = FPDF()
     pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_font("Arial", 'B', 16)
+    pdf.set_text_color(0, 102, 204)
+    pdf.cell(0, 10, "Career Guidance Report", ln=True, align='C')
+
+    pdf.set_font("Arial", 'I', 12)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 10, f"Student Name: {student_name}", ln=True)
+
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Arial", 'B', 13)
+    pdf.ln(5)
+    pdf.cell(0, 10, "Your Career Personality & Interests", ln=True)
+    pdf.set_font("Arial", size=11)
+    pdf.multi_cell(0, 8, "Based on your answers, we've identified the dominant areas of interest and working styles that best define you. This gives a glimpse into the kind of environments and careers you may thrive in.")
+
+    top_domains = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:3]
+    pdf.ln(2)
+    for domain, score in top_domains:
+        pdf.cell(0, 8, f"- {domain} (score: {score})", ln=True)
+
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 13)
+    pdf.cell(0, 10, "Your Academic Strengths", ln=True)
+    pdf.set_font("Arial", size=11)
+    pdf.multi_cell(0, 8, "Here's a summary of your self-reported scores from Class 9 and 10. These help us understand which subjects you're most confident in.")
+    pdf.ln(1)
+    for index, row in academic_scores.iterrows():
+        pdf.cell(0, 8, f"{row['Subject']}: Class 9 - {row['Class 9 (%)']}%, Class 10 - {row['Class 10 (%)']}%", ln=True)
+
+    major_minor = {
+        ("STEM", "Business"): ("Computer Science", "Business Analytics"),
+        ("Humanities", "Creative"): ("Psychology", "Media Studies"),
+        ("Creative", "Business"): ("Design", "Marketing"),
+    }
+    top_tags = tuple(sorted([d[0] for d in top_domains if d[0] in ["STEM", "Humanities", "Creative", "Business"]])[:2])
+    major, minor = major_minor.get(top_tags, ("General Studies", "Communication"))
+
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 13)
+    pdf.cell(0, 10, "Recommended Major & Minor", ln=True)
+    pdf.set_font("Arial", size=11)
+    pdf.multi_cell(0, 8, f"Based on your strengths and interests, we recommend the following course paths:
+Major: {major}
+Minor: {minor}")
+
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 13)
+    pdf.cell(0, 10, "Top Global Universities to Explore", ln=True)
+    universities = {
+        "Computer Science": ["University of Toronto", "University of Michigan", "NUS"],
+        "Psychology": ["UCL", "University of Amsterdam", "University of British Columbia"],
+        "Design": ["Parsons School of Design", "RMIT", "University of the Arts London"],
+        "General Studies": ["Arizona State University", "Monash University", "York University"]
+    }
+    pdf.set_font("Arial", size=10)
+    for uni in universities.get(major, []):
+        pdf.cell(0, 8, f"- {uni}", ln=True)
+
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 13)
+    pdf.cell(0, 10, "Potential Career Paths & Entry Roles", ln=True)
+    pdf.set_font("Arial", size=10)
+    if major == "Computer Science":
+        careers = ["Product Analyst at Google", "Data Analyst at Amazon", "Software Intern at Atlassian"]
+    elif major == "Psychology":
+        careers = ["Research Assistant at WHO", "Policy Analyst at UNDP", "Behavioural Analyst at Deloitte"]
+    elif major == "Design":
+        careers = ["UX Designer at Canva", "Visual Designer at Ogilvy", "Intern at IDEO"]
+    else:
+        careers = ["Content Creator", "Program Manager", "Marketing Intern"]
+
+    for job in careers:
+        pdf.cell(0, 8, f"- {job}", ln=True)
+
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 13)
+    pdf.cell(0, 10, "Final Thoughts", ln=True)
+    pdf.set_font("Arial", 'I', 11)
+    pdf.set_text_color(80, 80, 80)
+    pdf.multi_cell(0, 8, f"You're on the path to a promising global career. Remember, career discovery is a journey. Use this insight to explore, experiment, and grow into your full potential. Stay curious, stay inspired.")
+
+    file_path = f"{student_name.replace(' ', '_')}_Career_Report.pdf"
+    pdf.output(file_path)
+    return file_path
+    pdf = FPDF()
+    pdf.add_page()
     pdf.set_font("Arial", size=12)
 
     pdf.cell(200, 10, f"Career Guidance Report for {student_name}", ln=True, align='C')
@@ -88,7 +175,7 @@ def generate_pdf_report(scores, academic_scores, student_name):
     pdf.set_font("Arial", 'I', 11)
     pdf.multi_cell(0, 10, "You're on the path to a promising global career. Continue exploring your strengths and building real-world exposure. Your journey has just begun!")
 
-    file_path = f"{student_name.replace(' ', '_')}_Career_Report.pdf"
+    file_path = f"/mnt/data/{student_name.replace(' ', '_')}_Career_Report.pdf"
     pdf.output(file_path)
     return file_path
 
