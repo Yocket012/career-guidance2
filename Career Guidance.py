@@ -415,10 +415,14 @@ st.title("Career Guidance Psychometric Test")
 st.markdown("Answer the following 60 questions to receive a personalized career trait analysis report.")
 
 student_name = st.text_input("Enter your full name:")
+
+if 'page' not in st.session_state:
+    st.session_state.page = 0
+
 if 'responses' not in st.session_state:
     st.session_state.responses = {}
-responses = st.session_state.responses
 
+responses = st.session_state.responses
 
 pages = [
     ("Personality", list(range(1, 11))),
@@ -428,9 +432,6 @@ pages = [
     ("Interest", list(range(41, 51))),
     ("Aptitude", list(range(51, 61)))
 ]
-
-if 'page' not in st.session_state:
-    st.session_state.page = 0
 
 if st.session_state.page < len(pages):
     dim_name, q_ids = pages[st.session_state.page]
@@ -443,7 +444,6 @@ if st.session_state.page < len(pages):
 
     if st.button("Next"):
         st.session_state.page += 1
-        st.rerun()
 else:
     if st.button("Generate Report"):
         if student_name and all(responses.values()):
