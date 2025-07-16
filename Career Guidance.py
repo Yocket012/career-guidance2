@@ -441,7 +441,8 @@ if st.session_state.page < len(pages):
         if q_data:
             options = list(q_data["options"].keys())
             current_val = responses.get(q_id, None)
-            responses[q_id] = st.radio(q_data["question"], options, key=q_id, index=-1 if current_val is None else options.index(current_val))
+            index = options.index(current_val) if current_val in options else None
+            responses[q_id] = st.radio(q_data["question"], options, key=q_id, index=index if index is not None else None)
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -451,7 +452,7 @@ if st.session_state.page < len(pages):
         if st.button("Reset"):
             st.session_state.responses = {}
             st.session_state.page = 0
-            st.experimental_rerun()
+            st.rerun()
     with col3:
         if st.button("Next"):
             st.session_state.page += 1
