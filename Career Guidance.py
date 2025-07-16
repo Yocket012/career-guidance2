@@ -440,10 +440,22 @@ if st.session_state.page < len(pages):
         q_data = questions.get(q_id)
         if q_data:
             options = list(q_data["options"].keys())
-            responses[q_id] = st.radio(q_data["question"], options, key=q_id)
+            current_val = responses.get(q_id, None)
+            responses[q_id] = st.radio(q_data["question"], options, key=q_id, index=-1 if current_val is None else options.index(current_val))
 
-    if st.button("Next"):
-        st.session_state.page += 1
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("Back") and st.session_state.page > 0:
+            st.session_state.page -= 1
+    with col2:
+        if st.button("Reset"):
+            st.session_state.responses = {}
+            st.session_state.page = 0
+            st.experimental_rerun()
+    with col3:
+        if st.button("Next"):
+            st.session_state.page += 1
+
 else:
     if st.button("Generate Report"):
         if student_name and all(responses.values()):
