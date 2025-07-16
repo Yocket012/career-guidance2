@@ -433,31 +433,38 @@ pages = [
     ("Aptitude", list(range(51, 61)))
 ]
 
-if st.session_state.page < len(pages):
-    dim_name, q_ids = pages[st.session_state.page]
-    st.header(f"{dim_name} Questions")
-    for q_id in q_ids:
-        q_data = questions.get(q_id)
-        if q_data:
-            options = list(q_data["options"].keys())
-            current_val = responses.get(q_id, None)
-            index = options.index(current_val) if current_val in options else None
-            responses[q_id] = st.radio(q_data["question"], options, key=q_id, index=index if index is not None else None)
+dim_name, q_ids = pages[st.session_state.page]
+st.header(f"{dim_name} Questions")
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("Back") and st.session_state.page > 0:
-            st.session_state.page -= 1
-    with col2:
-        if st.button("Reset"):
-            st.session_state.responses = {}
-            st.session_state.page = 0
-            st.rerun()
-    with col3:
-        if st.button("Next"):
+incomplete = False
+for q_idx, q_id in enumerate(q_ids, start=1):
+    q_data = questions.get(q_id)
+    if q_data:
+        options = list(q_data["options"].keys())
+        current_val = responses.get(q_id, None)
+        responses[q_id] = st.radio(f"Q{q_id}. {q_data['question']}", options, key=q_id, index=options.index(current_val) if current_val in options else -1)
+        if responses[q_id] is None:
+            incomplete = True
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    if st.button("Back") and st.session_state.page > 0:
+        st.session_state.page -= 1
+        st.rerun()
+with col2:
+    if st.button("Reset"):
+        st.session_state.responses = {}
+        st.session_state.page = 0
+        st.rerun()
+with col3:
+    if st.button("Next"):
+        if any(responses[q_id] is None for q_id in q_ids):
+            st.warning("Please answer all questions on this page before continuing.")
+        else:
             st.session_state.page += 1
+            st.rerun()
 
-else:
+if st.session_state.page == len(pages):
     if st.button("Generate Report"):
         if student_name and all(responses.values()):
             scores_by_dim = calculate_scores(responses)
