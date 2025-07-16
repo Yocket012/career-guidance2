@@ -415,7 +415,10 @@ st.title("Career Guidance Psychometric Test")
 st.markdown("Answer the following 60 questions to receive a personalized career trait analysis report.")
 
 student_name = st.text_input("Enter your full name:")
-responses = {}
+if 'responses' not in st.session_state:
+    st.session_state.responses = {}
+responses = st.session_state.responses
+
 
 pages = [
     ("Personality", list(range(1, 11))),
