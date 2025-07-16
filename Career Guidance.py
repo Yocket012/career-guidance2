@@ -436,13 +436,16 @@ if st.session_state.page < len(pages):
 
     if st.button("Next"):
         st.session_state.page += 1
-        st.experimental_rerun()
+        st.rerun()
 else:
     if st.button("Generate Report"):
         if student_name and all(responses.values()):
             scores_by_dim = calculate_scores(responses)
             chart_paths = generate_split_radar_charts(scores_by_dim)
             pdf_bytes = generate_pdf(student_name, scores_by_dim, chart_paths)
+            st.download_button("Download Your Career Report", pdf_bytes, file_name=f"{student_name.replace(' ', '_')}_Career_Report.pdf")
+        else:
+            st.warning("Please answer all questions and provide your name.")
             st.download_button("Download Your Career Report", pdf_bytes, file_name=f"{student_name.replace(' ', '_')}_Career_Report.pdf")
         else:
             st.warning("Please answer all questions and provide your name.")
