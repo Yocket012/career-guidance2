@@ -95,7 +95,7 @@ Your psychometric responses show a strong alignment with {top_tags[0]} and {top_
 
 ...indicates that you are well-prepared to explore this combination at a deeper academic level."""
 
-pdf.multi_cell(0, 8, recommendation_text)
+    pdf.multi_cell(0, 8, recommendation_text)
 
 
     pdf.ln(5)
