@@ -1,155 +1,157 @@
 import pandas as pd
-from fpdf import FPDF
-from collections import Counter
 
-def run_psychometric_test():
-    """
-    This function runs the psychometric test, collects user data,
-    and generates a career guidance report in PDF format.
-    """
+def get_personal_info():
+    """Gets the student's name and number."""
+    name = input("Enter your full name: ")
+    while True:
+        number = input("Enter your 10-digit mobile number: ")
+        if number.isdigit() and len(number) == 10:
+            break
+        else:
+            print("Invalid mobile number. Please enter a 10-digit number.")
+    return name, number
 
-    # --- 1. Load Data ---
+def get_academic_scores():
+    """Gets the student's academic scores for their top 5 subjects."""
+    subjects = [
+        "Maths", "Physics", "Chemistry", "Biology", "History", "Civics",
+        "Geography", "Economics", "Statistics", "Computer Science", "English"
+    ]
+    selected_subjects = {}
+    print("\nPlease select your top 5 subjects from the list below and enter your scores (out of 100).")
+    for i in range(5):
+        while True:
+            print("\nAvailable subjects:", ", ".join(subjects))
+            subject = input(f"Enter subject {i+1}: ").strip().title()
+            if subject in subjects and subject not in selected_subjects:
+                while True:
+                    try:
+                        score = float(input(f"Enter score for {subject}: "))
+                        if 0 <= score <= 100:
+                            selected_subjects[subject] = score
+                            break
+                        else:
+                            print("Invalid score. Please enter a number between 0 and 100.")
+                    except ValueError:
+                        print("Invalid input. Please enter a number.")
+                break
+            elif subject in selected_subjects:
+                print("You have already entered a score for this subject.")
+            else:
+                print("Invalid subject. Please choose from the list.")
+    return selected_subjects
+
+def run_mcq_test():
+    """Conducts the 30-question MCQ test and calculates scores."""
     try:
-        questions_df = pd.read_csv("30-Questions_test.xlsx - questions_set.csv")
-        weights_df = pd.read_csv("30-Questions_test.xlsx - weights_set.csv")
-        stem_df = pd.read_csv("Career Guidance Test.xlsx - stem_set.csv")
-        humanities_df = pd.read_csv("Career Guidance Test.xlsx - humanities_set.csv")
-        arts_df = pd.read_csv("Career Guidance Test.xlsx - arts_set.csv")
-    except FileNotFoundError as e:
-        print(f"Error loading data files: {e}")
+        df_questions = pd.read_excel("30_Questions_test.xlsx", sheet_name="Questions")
+        df_weights = pd.read_excel("30_Questions_test.xlsx", sheet_name="Weights")
+    except FileNotFoundError:
+        print("\nError: '30_Questions_test.xlsx' not found. Please ensure the file is in the correct directory.")
+        return None, None
+
+    answers = []
+    print("\n--- Psychometric Test ---")
+    print("Please answer the following 30 questions.")
+    for index, row in df_questions.iterrows():
+        print(f"\nQ{index+1}: {row['Question']}")
+        print(f"  A. {row['Option A']}")
+        print(f"  B. {row['Option B']}")
+        print(f"  C. {row['Option C']}")
+        print(f"  D. {row['Option D']}")
+        while True:
+            answer = input("Your choice (A/B/C/D): ").upper()
+            if answer in ['A', 'B', 'C', 'D']:
+                answers.append(answer)
+                break
+            else:
+                print("Invalid choice. Please enter A, B, C, or D.")
+
+    # Calculate scores
+    role_type_scores = {role: 0 for role in df_weights['Role Type'].unique()}
+    career_line_scores = {line: 0 for line in df_weights['Career Line'].unique()}
+
+    for i, answer in enumerate(answers):
+        question_weights = df_weights[df_weights['Question No.'] == i + 1]
+        selected_option_weights = question_weights[question_weights['Option'] == answer]
+
+        for _, row in selected_option_weights.iterrows():
+            if pd.notna(row['Role Type']):
+                role_type_scores[row['Role Type']] += 1
+            if pd.notna(row['Career Line']):
+                career_line_scores[row['Career Line']] += 1
+
+    dominant_role_type = max(role_type_scores, key=role_type_scores.get)
+    dominant_career_line = max(career_line_scores, key=career_line_scores.get)
+
+    return dominant_role_type, dominant_career_line
+
+def determine_subject_interest(academic_scores):
+    """Determines the student's primary subject interest."""
+    stem_subjects = ["Maths", "Physics", "Chemistry", "Biology", "Statistics", "Computer Science"]
+    humanities_subjects = ["History", "Civics", "Geography", "Economics", "English"]
+    arts_subjects = [] # Can be expanded based on available subjects
+
+    stem_score = sum(score for subject, score in academic_scores.items() if subject in stem_subjects)
+    humanities_score = sum(score for subject, score in academic_scores.items() if subject in humanities_subjects)
+    # arts_score = sum(score for subject, score in academic_scores.items() if subject in arts_subjects)
+
+    if stem_score >= humanities_score:
+        return "STEM"
+    else:
+        return "Humanities"
+
+
+def generate_career_report(subject_interest, role_type, career_line):
+    """Generates a career report based on the test results."""
+    try:
+        df_guidance = pd.read_excel("Career Guidance Test.xlsx", sheet_name="Guidance")
+    except FileNotFoundError:
+        print("\nError: 'Career Guidance Test.xlsx' not found. Please ensure the file is in the correct directory.")
         return
 
-    # --- 2. Personal and Academic Info (Simulated) ---
-    student_name = "Test User"
-    student_number = "1234567890"
-    academic_scores = {
-        "Maths": 95,
-        "Physics": 92,
-        "Chemistry": 88,
-        "Computer Science": 98,
-        "English": 85,
-    }
+    report = df_guidance[
+        (df_guidance['Subject Interest'] == subject_interest) &
+        (df_guidance['Role Type'] == role_type) &
+        (df_guidance['Career Line'] == career_line)
+    ]
 
-    # --- 3. Determine Subject Interest ---
-    subject_categories = {
-        "STEM": ["Maths", "Physics", "Chemistry", "Biology", "Computer Science", "Statistics"],
-        "Humanities": ["History", "Civics", "Geography", "Economics"],
-        "Arts": ["English"],
-    }
-
-    def get_subject_interest(scores):
-        category_scores = {"STEM": 0, "Humanities": 0, "Arts": 0}
-        for subject in scores:
-            for category, subjects_in_category in subject_categories.items():
-                if subject in subjects_in_category:
-                    category_scores[category] += 1
-        return max(category_scores, key=category_scores.get)
-
-    subject_interest = get_subject_interest(academic_scores)
-
-    # --- 4. Psychometric Test (Simulated Answers) ---
-    answers = ['a'] * 30  # Simulate answering 'a' for all questions
-    
-    role_type_answers = []
-    career_line_answers = []
-
-    option_map = {
-        'a': 'Option A Weights',
-        'b': 'Option B Weights',
-        'c': 'Option C Weights',
-        'd': 'Option D Weights'
-    }
-
-    for i, answer_choice in enumerate(answers):
-        question_number = i + 1
-        weight_row = weights_df[weights_df['Q#'] == question_number]
-        
-        if not weight_row.empty:
-            career_line = weight_row.iloc[0]['Theme']
-            career_line_answers.append(career_line)
-            
-            option_column = option_map.get(answer_choice.lower())
-            if option_column and option_column in weight_row:
-                role_type_string = weight_row.iloc[0][option_column]
-                if isinstance(role_type_string, str):
-                    roles = role_type_string.split(',')
-                    for role in roles:
-                        role_name = role.split('=')[0].strip()
-                        role_type_answers.append(role_name)
-                else:
-                    role_type_answers.append(role_type_string)
-
-    determined_role_type = Counter(role_type_answers).most_common(1)[0][0]
-    determined_career_line = Counter(career_line_answers).most_common(1)[0][0]
-
-
-    # --- 5. Get Career Guidance ---
-    def get_career_guidance(interest, role, line):
-        df = None
-        if interest == "STEM":
-            df = stem_df.rename(columns={'Top Universities  Globally': 'Top Universities Abroad'})
-        elif interest == "Humanities":
-            df = humanities_df
-        elif interest == "Arts":
-            df = arts_df
-
-        if df is not None:
-            guidance = df[(df['Role Type'] == role) & (df['Career Line'] == line)]
-            if not guidance.empty:
-                return guidance.iloc[0]
-        return None
-
-    career_guidance = get_career_guidance(subject_interest, determined_role_type, determined_career_line)
-
-    # --- 6. Generate PDF Report ---
-    class PDF(FPDF):
-        def header(self):
-            self.set_font('Arial', 'B', 12)
-            self.cell(0, 10, 'Psychometric Test Report', 1, 1, 'C')
-
-        def chapter_title(self, title):
-            self.set_font('Arial', 'B', 12)
-            self.cell(0, 10, title, 0, 1, 'L')
-            self.ln(5)
-
-        def chapter_body(self, body):
-            self.set_font('Arial', '', 12)
-            body = str(body).encode('latin-1', 'replace').decode('latin-1')
-            self.multi_cell(0, 10, body)
-            self.ln()
-
-        def add_section(self, title, content):
-            self.chapter_title(title)
-            if isinstance(content, dict):
-                for key, value in content.items():
-                    self.chapter_body(f"{key}: {value}")
-            else:
-                self.chapter_body(content)
-
-    pdf = PDF()
-    pdf.add_page()
-
-    pdf.add_section("Personal Information", {"Name": student_name, "Number": student_number})
-    pdf.add_section("Academic Scores", academic_scores)
-    pdf.add_section("Determined Subject Interest", subject_interest)
-    pdf.add_section("Psychometric Test Results", {
-        "Determined Role Type": determined_role_type,
-        "Determined Career Line": determined_career_line,
-    })
-
-    if career_guidance is not None:
-        pdf.add_section("Career Guidance Message", career_guidance.get('Message', 'N/A'))
-        pdf.add_section("Example Career Options", career_guidance.get('Example Career Options', 'N/A'))
-        pdf.add_section("Potential Companies to Aim For", career_guidance.get('Potential Companies to Aim For', 'N/A'))
-        pdf.add_section("Entry-Level Designations", career_guidance.get('Entry-Level Designations', 'N/A'))
-        pdf.add_section("Top Universities in India", career_guidance.get('Top Universities India', 'N/A'))
-        pdf.add_section("Top Universities Abroad", career_guidance.get('Top Universities Abroad', 'N/A'))
+    if not report.empty:
+        report_data = report.iloc[0]
+        print("\n--- Your Personalized Career Guidance Report ---")
+        print(f"\nMessage: {report_data['Message']}")
+        print(f"\nExample Career Options: {report_data['Example Career Options']}")
+        print(f"\nPotential Companies to Aim For: {report_data['Potential Companies to Aim For']}")
+        print(f"\nEntry-Level Designations: {report_data['Entry-Level Designations']}")
+        print(f"\nTop Universities in India: {report_data['Top Universities India']}")
+        print(f"\nTop Universities Abroad: {report_data['Top Universities Abroad']}")
     else:
-        pdf.add_section("Career Guidance", "No specific guidance found for this combination.")
+        print("\nCould not find a specific career recommendation for your combination of results.")
+        print("This may indicate a unique profile. Consider exploring interdisciplinary fields.")
 
-    report_filename = "psychometric_report_final.pdf"
-    pdf.output(report_filename)
-    print(f"Final report generated: {report_filename}")
+if __name__ == "__main__":
+    print("--- Welcome to the Psychometric Career Guidance Test ---")
 
-# Run the test
-run_psychometric_test()
+    # Step 1: Personal Info
+    name, number = get_personal_info()
+
+    # Step 2: Academic Scores
+    academic_scores = get_academic_scores()
+
+    # Step 3: MCQ Test
+    role_type, career_line = run_mcq_test()
+
+    if role_type and career_line:
+        # Determine Subject Interest
+        subject_interest = determine_subject_interest(academic_scores)
+
+        # Display Results
+        print("\n--- Your Test Results ---")
+        print(f"Name: {name}")
+        print(f"Mobile Number: {number}")
+        print(f"Subject Interest: {subject_interest}")
+        print(f"Dominant Role Type: {role_type}")
+        print(f"Dominant Career Line: {career_line}")
+
+        # Generate and display the final report
+        generate_career_report(subject_interest, role_type, career_line)
