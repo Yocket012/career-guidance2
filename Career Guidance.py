@@ -54,16 +54,41 @@ def generate_pdf_report(scores, academic_scores, student_name):
         ("Humanities", "Creative"): ("Psychology", "Media Studies"),
         ("Creative", "Business"): ("Design", "Marketing"),
     }
-    top_tags = tuple(sorted([d[0] for d in top_domains if d[0] in ["STEM", "Humanities", "Creative", "Business"]])[:2])
+    academic_boost = {"STEM": 0, "Humanities": 0, "Creative": 0, "Business": 0}
+    for index, row in academic_scores.iterrows():
+        subject = row['Subject'].lower()
+        avg_score = (row['Class 9 (%)'] or 0 + row['Class 10 (%)'] or 0) / 2
+        if "math" in subject or "science" in subject or "computer" in subject:
+            academic_boost["STEM"] += avg_score
+        elif "social" in subject:
+            academic_boost["Humanities"] += avg_score
+        elif "english" in subject or "language" in subject:
+            academic_boost["Creative"] += avg_score
+        elif "business" in subject:
+            academic_boost["Business"] += avg_score
+
+    combined_scores = {k: scores.get(k, 0)*2 + academic_boost.get(k, 0)/20 for k in ["STEM", "Humanities", "Creative", "Business"]}
+    top_tags = tuple(sorted(combined_scores, key=combined_scores.get, reverse=True)[:2])
     major, minor = major_minor.get(top_tags, ("General Studies", "Communication"))
 
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 13)
     pdf.cell(0, 10, "Recommended Major & Minor", ln=True)
     pdf.set_font("Arial", size=11)
-    pdf.multi_cell(0, 8, f"""Based on your strengths and interests, we recommend the following course paths:
+    pdf.multi_cell(0, 8, f"""Based on your strengths and interests — drawn from both your responses and academic subject scores — we recommend this personalised academic path:
+
 Major: {major}
-Minor: {minor}""")
+Minor: {minor}
+
+Why this recommendation?
+Your psychometric responses show a strong alignment with {top_tags[0]} and {top_tags[1]} fields. Additionally, your academic performance in subjects such as:
+
+- STEM Boost: {academic_boost['STEM']:.1f}
+- Humanities Boost: {academic_boost['Humanities']:.1f}
+- Creative Boost: {academic_boost['Creative']:.1f}
+- Business Boost: {academic_boost['Business']:.1f}
+
+...indicates that you are well-prepared to explore this combination at a deeper academic level.""")
 
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 13)
