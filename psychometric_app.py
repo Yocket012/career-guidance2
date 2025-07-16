@@ -1,91 +1,155 @@
 import pandas as pd
-import streamlit as st
+from fpdf import FPDF
+from collections import Counter
 
-# Load files
-questions_df = pd.read_excel("questions_set.xlsx")
-scoring_df = pd.read_excel("scoring_set.xlsx")
-stem_df = pd.read_excel("stem_set.xlsx")
-arts_df = pd.read_excel("arts_set.xlsx")
-humanities_df = pd.read_excel("humanities_set.xlsx")
+def run_psychometric_test():
+    """
+    This function runs the psychometric test, collects user data,
+    and generates a career guidance report in PDF format.
+    """
 
-st.set_page_config(page_title="Career Guidance Tool", layout="centered")
+    # --- 1. Load Data ---
+    try:
+        questions_df = pd.read_csv("30-Questions_test.xlsx - questions_set.csv")
+        weights_df = pd.read_csv("30-Questions_test.xlsx - weights_set.csv")
+        stem_df = pd.read_csv("Career Guidance Test.xlsx - stem_set.csv")
+        humanities_df = pd.read_csv("Career Guidance Test.xlsx - humanities_set.csv")
+        arts_df = pd.read_csv("Career Guidance Test.xlsx - arts_set.csv")
+    except FileNotFoundError as e:
+        print(f"Error loading data files: {e}")
+        return
 
-st.title("🎓 Career & Role Type Guidance")
-st.subheader("Step 1: Answer these questions to understand your preferences")
+    # --- 2. Personal and Academic Info (Simulated) ---
+    student_name = "Test User"
+    student_number = "1234567890"
+    academic_scores = {
+        "Maths": 95,
+        "Physics": 92,
+        "Chemistry": 88,
+        "Computer Science": 98,
+        "English": 85,
+    }
 
-# Store answers
-responses = {}
+    # --- 3. Determine Subject Interest ---
+    subject_categories = {
+        "STEM": ["Maths", "Physics", "Chemistry", "Biology", "Computer Science", "Statistics"],
+        "Humanities": ["History", "Civics", "Geography", "Economics"],
+        "Arts": ["English"],
+    }
 
-# Render questions
-for idx, row in questions_df.iterrows():
-    question = row["Question"]
-    options = [row[f"Option {opt}"] for opt in ["A", "B", "C", "D"] if f"Option {opt}" in row]
-    selected = st.radio(question, options, key=idx)
-    responses[question] = selected
+    def get_subject_interest(scores):
+        category_scores = {"STEM": 0, "Humanities": 0, "Arts": 0}
+        for subject in scores:
+            for category, subjects_in_category in subject_categories.items():
+                if subject in subjects_in_category:
+                    category_scores[category] += 1
+        return max(category_scores, key=category_scores.get)
 
-st.subheader("Step 2: Tell us your best 6 subjects & marks")
+    subject_interest = get_subject_interest(academic_scores)
 
-subject_marks = []
-for i in range(6):
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        subject = st.text_input(f"Subject {i+1}", key=f"subject_{i}")
-    with col2:
-        marks = st.number_input(f"Marks", min_value=0, max_value=100, key=f"marks_{i}")
-    if subject:
-        subject_marks.append((subject.lower(), marks))
+    # --- 4. Psychometric Test (Simulated Answers) ---
+    answers = ['a'] * 30  # Simulate answering 'a' for all questions
+    
+    role_type_answers = []
+    career_line_answers = []
 
-def get_inclination(subject_marks):
-    stem_subjects = {"math", "physics", "chemistry", "biology", "cs", "computer science"}
-    arts_subjects = {"music", "painting", "fine arts", "drama", "dance"}
-    humanities_subjects = {"history", "geography", "political science", "sociology", "psychology", "economics", "english"}
+    option_map = {
+        'a': 'Option A Weights',
+        'b': 'Option B Weights',
+        'c': 'Option C Weights',
+        'd': 'Option D Weights'
+    }
 
-    scores = {"STEM": 0, "ARTS": 0, "HUMANITIES": 0}
+    for i, answer_choice in enumerate(answers):
+        question_number = i + 1
+        weight_row = weights_df[weights_df['Q#'] == question_number]
+        
+        if not weight_row.empty:
+            career_line = weight_row.iloc[0]['Theme']
+            career_line_answers.append(career_line)
+            
+            option_column = option_map.get(answer_choice.lower())
+            if option_column and option_column in weight_row:
+                role_type_string = weight_row.iloc[0][option_column]
+                if isinstance(role_type_string, str):
+                    roles = role_type_string.split(',')
+                    for role in roles:
+                        role_name = role.split('=')[0].strip()
+                        role_type_answers.append(role_name)
+                else:
+                    role_type_answers.append(role_type_string)
 
-    for subj, marks in subject_marks:
-        if subj in stem_subjects:
-            scores["STEM"] += marks
-        elif subj in arts_subjects:
-            scores["ARTS"] += marks
-        elif subj in humanities_subjects:
-            scores["HUMANITIES"] += marks
+    determined_role_type = Counter(role_type_answers).most_common(1)[0][0]
+    determined_career_line = Counter(career_line_answers).most_common(1)[0][0]
 
-    return max(scores, key=scores.get)
 
-# Score Calculation
-def calculate_scores(responses):
-    category_scores = {}
-    for question, answer in responses.items():
-        row = scoring_df[scoring_df["Question"] == question]
-        if not row.empty:
-            category = row.iloc[0]["Category"]
-            score = row.iloc[0][f"Weight {answer[-1]}"]  # Assuming Option A = last char A
-            category_scores[category] = category_scores.get(category, 0) + score
-    return category_scores
+    # --- 5. Get Career Guidance ---
+    def get_career_guidance(interest, role, line):
+        df = None
+        if interest == "STEM":
+            df = stem_df.rename(columns={'Top Universities  Globally': 'Top Universities Abroad'})
+        elif interest == "Humanities":
+            df = humanities_df
+        elif interest == "Arts":
+            df = arts_df
 
-if st.button("🔍 Generate Report"):
-    if len(subject_marks) < 6 or len(responses) < len(questions_df):
-        st.error("Please answer all questions and enter 6 subjects with marks.")
+        if df is not None:
+            guidance = df[(df['Role Type'] == role) & (df['Career Line'] == line)]
+            if not guidance.empty:
+                return guidance.iloc[0]
+        return None
+
+    career_guidance = get_career_guidance(subject_interest, determined_role_type, determined_career_line)
+
+    # --- 6. Generate PDF Report ---
+    class PDF(FPDF):
+        def header(self):
+            self.set_font('Arial', 'B', 12)
+            self.cell(0, 10, 'Psychometric Test Report', 1, 1, 'C')
+
+        def chapter_title(self, title):
+            self.set_font('Arial', 'B', 12)
+            self.cell(0, 10, title, 0, 1, 'L')
+            self.ln(5)
+
+        def chapter_body(self, body):
+            self.set_font('Arial', '', 12)
+            body = str(body).encode('latin-1', 'replace').decode('latin-1')
+            self.multi_cell(0, 10, body)
+            self.ln()
+
+        def add_section(self, title, content):
+            self.chapter_title(title)
+            if isinstance(content, dict):
+                for key, value in content.items():
+                    self.chapter_body(f"{key}: {value}")
+            else:
+                self.chapter_body(content)
+
+    pdf = PDF()
+    pdf.add_page()
+
+    pdf.add_section("Personal Information", {"Name": student_name, "Number": student_number})
+    pdf.add_section("Academic Scores", academic_scores)
+    pdf.add_section("Determined Subject Interest", subject_interest)
+    pdf.add_section("Psychometric Test Results", {
+        "Determined Role Type": determined_role_type,
+        "Determined Career Line": determined_career_line,
+    })
+
+    if career_guidance is not None:
+        pdf.add_section("Career Guidance Message", career_guidance.get('Message', 'N/A'))
+        pdf.add_section("Example Career Options", career_guidance.get('Example Career Options', 'N/A'))
+        pdf.add_section("Potential Companies to Aim For", career_guidance.get('Potential Companies to Aim For', 'N/A'))
+        pdf.add_section("Entry-Level Designations", career_guidance.get('Entry-Level Designations', 'N/A'))
+        pdf.add_section("Top Universities in India", career_guidance.get('Top Universities India', 'N/A'))
+        pdf.add_section("Top Universities Abroad", career_guidance.get('Top Universities Abroad', 'N/A'))
     else:
-        inclination = get_inclination(subject_marks)
-        st.success(f"Your academic inclination: **{inclination}**")
+        pdf.add_section("Career Guidance", "No specific guidance found for this combination.")
 
-        scores = calculate_scores(responses)
-        st.subheader("🔢 Your Category Scores")
-        st.write(scores)
+    report_filename = "psychometric_report_final.pdf"
+    pdf.output(report_filename)
+    print(f"Final report generated: {report_filename}")
 
-        # Choose dataset
-        if inclination == "STEM":
-            report_df = stem_df
-        elif inclination == "ARTS":
-            report_df = arts_df
-        else:
-            report_df = humanities_df
-
-        # Match top categories
-        top_categories = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:2]
-        top_roles = report_df[report_df["Category"].isin([c[0] for c in top_categories])]
-
-        st.subheader("🎯 Suggested Careers & Role Types")
-        st.dataframe(top_roles.reset_index(drop=True))
-
+# Run the test
+run_psychometric_test()
