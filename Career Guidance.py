@@ -504,6 +504,18 @@ def generate_pdf(student_name, scores_by_dim, chart_paths, recommendations):
 
     return output_buffer
 
+# Add admin view toggle
+is_admin = st.sidebar.checkbox("👤 Admin Mode")
+
+# Admin View
+if is_admin:
+    st.title("📁 Admin Report Viewer")
+    uploaded_file = st.file_uploader("Upload a Report PDF", type=["pdf"])
+    if uploaded_file:
+        st.download_button("⬇️ Download Uploaded Report", data=uploaded_file.getvalue(), file_name="Uploaded_Career_Report.pdf")
+        st.success("Report ready for download.")
+    st.stop()
+
 # -- STREAMLIT UI --
 if 'responses' not in st.session_state:
     st.session_state.responses = {}
