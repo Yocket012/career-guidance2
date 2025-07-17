@@ -357,6 +357,7 @@ university_domains = {
     "Business": ["Wharton", "INSEAD", "London Business School", "IIM Ahmedabad"]
 }
 
+# -- FUNCTIONS --
 def calculate_scores(responses):
     scores_by_dim = {}
     for dim, q_ids in dim_labels.items():
@@ -374,9 +375,16 @@ def recommend_domain(scores_by_dim):
     summary = {}
     interests = scores_by_dim.get("Interest", {})
     top_interest = max(interests, key=interests.get) if interests else "General"
-    if top_interest in career_domains:
-        summary["Careers"] = career_domains[top_interest]
-        summary["Universities"] = university_domains[top_interest]
+    interest_map = {
+        "STEM": "STEM",
+        "Creative": "Creative",
+        "Humanities": "Social",
+        "Business": "Business"
+    }
+    mapped_interest = interest_map.get(top_interest, "General")
+    if mapped_interest in career_domains:
+        summary["Careers"] = career_domains[mapped_interest]
+        summary["Universities"] = university_domains[mapped_interest]
     return summary
 
 def get_subject_analysis(subject_scores):
@@ -405,7 +413,6 @@ def generate_split_radar_charts(scores_by_dim):
     for dimension, scores in scores_by_dim.items():
         if not scores:
             continue
-
         labels = list(scores.keys())
         values = list(scores.values())
         angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
@@ -441,6 +448,14 @@ def generate_pdf(student_name, scores_by_dim, chart_paths, recommendations):
     pdf.set_font("Arial", size=12)
     pdf.cell(200, 10, txt=f"Career Report: {student_name}", ln=True, align='C')
     pdf.ln(5)
+    pdf.multi_cell(0, 10, txt=(
+        f"Dear {student_name},\n\n"
+        "Thank you for completing the career guidance assessment. Based on your responses and academic scores, this report provides an overview of your key traits and suggestions for future career paths.\n\n"
+        "This report includes insights into your personality, learning preferences, behavior, emotional tendencies, and interests. It also offers tailored recommendations for suitable majors, careers, and university options."
+    ))
+
+    pdf.ln(5)
+    pdf.set_font("Arial", size=12)
     pdf.multi_cell(0, 10, txt="Your psychometric analysis across 6 core dimensions shows the following dominant traits:")
     summary = generate_summary(scores_by_dim)
     for line in summary.strip().split('\n'):
@@ -466,8 +481,14 @@ def generate_pdf(student_name, scores_by_dim, chart_paths, recommendations):
     pdf_output = pdf.output(dest='S').encode('latin1')
     output_buffer.write(pdf_output)
     output_buffer.seek(0)
+
+    # Clean up temp files
+    for path in chart_paths.values():
+        os.remove(path)
+
     return output_buffer
 
+# -- STREAMLIT UI --
 if 'responses' not in st.session_state:
     st.session_state.responses = {}
 if 'page' not in st.session_state:
@@ -476,26 +497,24 @@ if 'page' not in st.session_state:
 responses = st.session_state.responses
 pages = [(dim, dim_labels[dim]) for dim in dim_labels]
 
-st.markdown(f"## 🧭 Section {st.session_state.page + 1} of {len(pages)}")
+st.markdown(f"## \U0001F9ED Section {st.session_state.page + 1} of {len(pages)}")
 progress = (st.session_state.page + 1) / len(pages)
 st.progress(min(progress, 1.0))
 
 if st.session_state.page < len(pages):
     dim_name, q_ids = pages[st.session_state.page]
-    st.header(f"🔍 {dim_name} Assessment")
+    st.header(f"\U0001F50D {dim_name} Assessment")
 
     for q_id in q_ids:
         q_data = questions.get(q_id)
         if q_data:
             options = list(q_data["options"].keys())
-            default_index = options.index(responses[q_id]) if q_id in responses and responses[q_id] in options else None
-            selected = st.radio(
-                f"**Q{q_id}.** {q_data['question']}",
-                options,
-                index=default_index,
-                key=f"q_{q_id}"
-            )
-            responses[q_id] = selected if selected else None
+            if q_id in responses and responses[q_id] in options:
+                default_index = options.index(responses[q_id])
+                selected = st.radio(f"**Q{q_id}.** {q_data['question']}", options, index=default_index, key=f"q_{q_id}")
+            else:
+                selected = st.radio(f"**Q{q_id}.** {q_data['question']}", options, key=f"q_{q_id}")
+            responses[q_id] = selected
 
     st.markdown("---")
     col1, col2, col3 = st.columns([1, 1, 1])
@@ -532,6 +551,8 @@ else:
         recommendations = recommend_domain(scores)
         if majors:
             recommendations["Suggested Majors"] = majors
+        else:
+            recommendations["Suggested Majors"] = ["Liberal Arts", "General Studies"]
         pdf_bytes = generate_pdf(name, scores, charts, recommendations)
         st.success("✅ Report Generated Successfully!")
         st.download_button("📄 Download Career Report", data=pdf_bytes, file_name="Career_Report.pdf", mime="application/pdf")
