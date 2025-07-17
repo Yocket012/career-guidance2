@@ -504,17 +504,151 @@ def generate_pdf(student_name, scores_by_dim, chart_paths, recommendations):
 
     return output_buffer
 
-# Add admin view toggle
-is_admin = st.sidebar.checkbox("👤 Admin Mode")
+# -- FUNCTIONS --
+def calculate_scores(responses):
+    scores_by_dim = {}
+    for dim, q_ids in dim_labels.items():
+        dim_scores = {}
+        for q_id in q_ids:
+            selected = responses.get(q_id)
+            if selected:
+                tags = questions[q_id]['options'].get(selected, [])
+                for tag in tags:
+                    dim_scores[tag] = dim_scores.get(tag, 0) + weights[dim]
+        scores_by_dim[dim] = dim_scores
+    return scores_by_dim
 
-# Admin View
-if is_admin:
-    st.title("📁 Admin Report Viewer")
-    uploaded_file = st.file_uploader("Upload a Report PDF", type=["pdf"])
-    if uploaded_file:
-        st.download_button("⬇️ Download Uploaded Report", data=uploaded_file.getvalue(), file_name="Uploaded_Career_Report.pdf")
-        st.success("Report ready for download.")
-    st.stop()
+def recommend_domain(scores_by_dim):
+    summary = {}
+    interests = scores_by_dim.get("Interest", {})
+    top_interest = max(interests, key=interests.get) if interests else "General"
+    interest_map = {
+        "STEM": "STEM",
+        "Creative": "Creative",
+        "Humanities": "Social",
+        "Business": "Business"
+    }
+    mapped_interest = interest_map.get(top_interest, "General")
+    if mapped_interest in career_domains:
+        summary["Careers"] = career_domains[mapped_interest]
+        summary["Universities"] = university_domains[mapped_interest]
+    return summary
+
+def get_subject_analysis(subject_scores):
+    strengths = [subj for subj, score in subject_scores.items() if score >= 85]
+    weaknesses = [subj for subj, score in subject_scores.items() if score <= 60]
+    return strengths, weaknesses
+
+def suggest_majors(strengths):
+    mapping = {
+        "Math": ["Engineering", "Computer Science", "Economics"],
+        "Physics": ["Engineering", "Astrophysics"],
+        "Chemistry": ["Pharmacy", "Chemical Engineering"],
+        "Biology": ["Medicine", "Biotech"],
+        "English": ["Journalism", "Literature"],
+        "History": ["Public Policy", "Law"],
+        "Geography": ["Environmental Studies", "Urban Planning"],
+        "Economics": ["Finance", "Data Science"]
+    }
+    suggested = []
+    for subj in strengths:
+        suggested.extend(mapping.get(subj, []))
+    return list(set(suggested))
+
+def generate_split_radar_charts(scores_by_dim):
+    charts = {}
+    for dimension, scores in scores_by_dim.items():
+        if not scores:
+            continue
+        labels = list(scores.keys())
+        values = list(scores.values())
+        angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
+        values += values[:1]
+        angles += angles[:1]
+
+        fig, ax = plt.subplots(figsize=(7.5, 7.5), subplot_kw=dict(polar=True))
+        ax.plot(angles, values, 'o-', linewidth=2)
+        ax.fill(angles, values, alpha=0.25)
+        ax.set_yticklabels([])
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(labels, fontsize=9, wrap=True)
+        ax.set_title(dimension, fontsize=14)
+        fig.subplots_adjust(top=0.85, bottom=0.1)
+
+        tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        plt.savefig(tmpfile.name, dpi=150)
+        charts[dimension] = tmpfile.name
+        plt.close(fig)
+    return charts
+
+def generate_summary(scores_by_dim):
+    summary = ""
+    for dim, score_map in scores_by_dim.items():
+        if score_map:
+            top_area = max(score_map, key=score_map.get)
+            summary += f"\n- {dim}: Dominant trait = {top_area}"
+    return summary
+
+def generate_detailed_scores_text(scores_by_dim):
+    details = ""
+    for dim, score_map in scores_by_dim.items():
+        if score_map:
+            details += f"\n{dim} Scores:\n"
+            for trait, score in sorted(score_map.items(), key=lambda x: -x[1]):
+                details += f"- {trait}: {score:.1f}\n"
+    return details
+
+def generate_pdf(student_name, scores_by_dim, chart_paths, recommendations):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt=f"Career Report: {student_name}", ln=True, align='C')
+    pdf.ln(5)
+    pdf.multi_cell(0, 10, txt=(
+        f"Dear {student_name},\n\n"
+        "Thank you for completing the career guidance assessment. Based on your responses and academic scores, this report provides an overview of your key traits and suggestions for future career paths.\n\n"
+        "This report includes insights into your personality, learning preferences, behavior, emotional tendencies, and interests. It also offers tailored recommendations for suitable majors, careers, and university options."
+    ))
+
+    pdf.ln(5)
+    pdf.set_font("Arial", size=12)
+    pdf.multi_cell(0, 10, txt="Your psychometric analysis across 6 core dimensions shows the following dominant traits:")
+    summary = generate_summary(scores_by_dim)
+    for line in summary.strip().split('\n'):
+        pdf.multi_cell(0, 8, txt=line)
+
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, "Suggested Career Tracks & Universities", ln=True, align='C')
+    pdf.set_font("Arial", size=12)
+    for section, items in recommendations.items():
+        pdf.multi_cell(0, 8, f"\n{section} Suggestions:")
+        for item in items:
+            pdf.multi_cell(0, 8, f"- {item}")
+
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, "Detailed Scores Breakdown", ln=True, align='C')
+    pdf.set_font("Arial", size=12)
+    detail_text = generate_detailed_scores_text(scores_by_dim)
+    pdf.multi_cell(0, 8, detail_text)
+
+    for dim in dim_labels.keys():
+        if dim in chart_paths:
+            pdf.add_page()
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 10, f"{dim} Profile", ln=True, align='C')
+            pdf.image(chart_paths[dim], x=30, y=30, w=150)
+
+    output_buffer = BytesIO()
+    pdf_output = pdf.output(dest='S').encode('latin1')
+    output_buffer.write(pdf_output)
+    output_buffer.seek(0)
+
+    for path in chart_paths.values():
+        os.remove(path)
+
+    return output_buffer
 
 # -- STREAMLIT UI --
 if 'responses' not in st.session_state:
