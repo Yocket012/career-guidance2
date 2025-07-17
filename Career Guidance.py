@@ -418,7 +418,6 @@ student_name = st.text_input("Enter your full name:")
 
 if 'page' not in st.session_state:
     st.session_state.page = 0
-
 if 'responses' not in st.session_state:
     st.session_state.responses = {}
 
@@ -433,16 +432,30 @@ pages = [
     ("Aptitude", list(range(51, 61)))
 ]
 
+# Progress bar
+progress = (st.session_state.page + 1) / len(pages)
+st.progress(progress)
+
+# Section completion tracker
+completed = [
+    all(q_id in responses and responses[q_id] is not None for q_id in q_ids)
+    for _, q_ids in pages
+]
+st.markdown("**Section Progress:**")
+st.markdown(" ".join([
+    f"✅ {name}" if done else f"⬜️ {name}"
+    for (name, _), done in zip(pages, completed)
+]))
+
 if st.session_state.page < len(pages):
     dim_name, q_ids = pages[st.session_state.page]
-    st.header(f"{dim_name} Questions")
+    st.header(f"Page {st.session_state.page + 1} of {len(pages)}: {dim_name} Questions")
 
     incomplete = False
     for q_id in q_ids:
         q_data = questions.get(q_id)
         if q_data:
             options = list(q_data["options"].keys())
-            current_val = responses.get(q_id, None)
             responses[q_id] = st.radio(
                 f"Q{q_id}. {q_data['question']}",
                 options,
@@ -471,9 +484,14 @@ if st.session_state.page < len(pages):
                 st.rerun()
 
 elif st.session_state.page == len(pages):
+    st.header("Review Your Dominant Traits Before Downloading")
+    scores_by_dim = calculate_scores(responses)
+    summary_text = generate_summary(scores_by_dim)
+    st.markdown("### Summary of Your Dominant Traits:")
+    st.text(summary_text)
+
     if st.button("Generate Report"):
         if student_name and all(responses.get(q_id) in questions[q_id]['options'] for q_id in range(1, 61)):
-            scores_by_dim = calculate_scores(responses)
             chart_paths = generate_split_radar_charts(scores_by_dim)
             pdf_bytes = generate_pdf(student_name, scores_by_dim, chart_paths)
             st.download_button("Download Your Career Report", pdf_bytes, file_name=f"{student_name.replace(' ', '_')}_Career_Report.pdf")
