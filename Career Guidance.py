@@ -536,7 +536,7 @@ if st.session_state.page < len(pages):
             key=f"q_{q_id}"
         )
 
-            responses[q_id] = selected if selected else None
+    responses[q_id] = selected if selected else None
 
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
