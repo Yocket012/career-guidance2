@@ -489,11 +489,10 @@ if st.session_state.page < len(pages):
         q_data = questions.get(q_id)
         if q_data:
             options = list(q_data["options"].keys())
-            current_val = responses.get(q_id)
             selected = st.radio(
                 f"Q{q_id}. {q_data['question']}",
                 options,
-                index=options.index(current_val) if current_val in options else -1,
+                index=options.index(responses[q_id]) if q_id in responses and responses[q_id] in options else 0,
                 key=f"q_{q_id}"
             )
             responses[q_id] = selected if selected else None
