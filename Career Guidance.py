@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import tempfile
 import os
+import time
 
 st.set_page_config(page_title="Career Guidance Test", layout="centered")
 
