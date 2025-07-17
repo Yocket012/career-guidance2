@@ -357,6 +357,7 @@ university_domains = {
     "Business": ["Wharton", "INSEAD", "London Business School", "IIM Ahmedabad"]
 }
 
+
 # -- FUNCTIONS --
 def calculate_scores(responses):
     scores_by_dim = {}
@@ -442,6 +443,15 @@ def generate_summary(scores_by_dim):
             summary += f"\n- {dim}: Dominant trait = {top_area}"
     return summary
 
+def generate_detailed_scores_text(scores_by_dim):
+    details = ""
+    for dim, score_map in scores_by_dim.items():
+        if score_map:
+            details += f"\n{dim} Scores:\n"
+            for trait, score in sorted(score_map.items(), key=lambda x: -x[1]):
+                details += f"- {trait}: {score:.1f}\n"
+    return details
+
 def generate_pdf(student_name, scores_by_dim, chart_paths, recommendations):
     pdf = FPDF()
     pdf.add_page()
@@ -470,6 +480,13 @@ def generate_pdf(student_name, scores_by_dim, chart_paths, recommendations):
         for item in items:
             pdf.multi_cell(0, 8, f"- {item}")
 
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, "Detailed Scores Breakdown", ln=True, align='C')
+    pdf.set_font("Arial", size=12)
+    detail_text = generate_detailed_scores_text(scores_by_dim)
+    pdf.multi_cell(0, 8, detail_text)
+
     for dim in dim_labels.keys():
         if dim in chart_paths:
             pdf.add_page()
@@ -482,7 +499,6 @@ def generate_pdf(student_name, scores_by_dim, chart_paths, recommendations):
     output_buffer.write(pdf_output)
     output_buffer.seek(0)
 
-    # Clean up temp files
     for path in chart_paths.values():
         os.remove(path)
 
@@ -509,12 +525,9 @@ if st.session_state.page < len(pages):
         q_data = questions.get(q_id)
         if q_data:
             options = list(q_data["options"].keys())
-            if q_id in responses and responses[q_id] in options:
-                default_index = options.index(responses[q_id])
-                selected = st.radio(f"**Q{q_id}.** {q_data['question']}", options, index=default_index, key=f"q_{q_id}")
-            else:
-                selected = st.radio(f"**Q{q_id}.** {q_data['question']}", options, key=f"q_{q_id}")
-            responses[q_id] = selected
+            selected = st.radio(f"**Q{q_id}.** {q_data['question']}", options, index=None, key=f"q_{q_id}")
+            if selected:
+                responses[q_id] = selected
 
     st.markdown("---")
     col1, col2, col3 = st.columns([1, 1, 1])
