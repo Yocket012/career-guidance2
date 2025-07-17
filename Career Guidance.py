@@ -464,27 +464,31 @@ if st.session_state.page < len(pages):
         q_data = questions.get(q_id)
         if q_data:
             options = list(q_data["options"].keys())
-            default_index = 0 if responses.get(q_id) in options else None
-            selected = st.radio(f"Q{q_id}. {q_data['question']}", options, index=default_index, key=f"q_{q_id}")
+            selected = st.radio(
+                f"Q{q_id}. {q_data['question']}",
+                options,
+                index=options.index(responses[q_id]) if q_id in responses and responses[q_id] in options else None,
+                key=f"q_{q_id}"
+            )
             responses[q_id] = selected
 
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
         if st.button("⬅️ Back") and st.session_state.page > 0:
             st.session_state.page -= 1
-            st.experimental_rerun()
+            st.rerun()
     with col2:
         if st.button("🔄 Reset"):
             st.session_state.responses = {}
             st.session_state.page = 0
-            st.experimental_rerun()
+            st.rerun()
     with col3:
         if st.button("➡️ Next"):
             if any(responses.get(q_id) is None for q_id in q_ids):
                 st.warning("Please answer all questions before proceeding.")
             else:
                 st.session_state.page += 1
-                st.experimental_rerun()
+                st.rerun()
 
 elif st.session_state.page == len(pages):
     st.header("🎯 Review Your Dominant Traits")
