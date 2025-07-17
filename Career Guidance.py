@@ -377,6 +377,27 @@ def recommend_domain(scores_by_dim):
         summary["Universities"] = university_domains[top_interest]
     return summary
 
+def get_subject_analysis(subject_scores):
+    strengths = [subj for subj, score in subject_scores.items() if score >= 85]
+    weaknesses = [subj for subj, score in subject_scores.items() if score <= 60]
+    return strengths, weaknesses
+
+def suggest_majors(strengths):
+    mapping = {
+        "Math": ["Engineering", "Computer Science", "Economics"],
+        "Physics": ["Engineering", "Astrophysics"],
+        "Chemistry": ["Pharmacy", "Chemical Engineering"],
+        "Biology": ["Medicine", "Biotech"],
+        "English": ["Journalism", "Literature"],
+        "History": ["Public Policy", "Law"],
+        "Geography": ["Environmental Studies", "Urban Planning"],
+        "Economics": ["Finance", "Data Science"]
+    }
+    suggested = []
+    for subj in strengths:
+        suggested.extend(mapping.get(subj, []))
+    return list(set(suggested))
+
 def generate_split_radar_charts(scores_by_dim):
     charts = {}
     for dimension, scores in scores_by_dim.items():
@@ -389,17 +410,17 @@ def generate_split_radar_charts(scores_by_dim):
         values += values[:1]
         angles += angles[:1]
 
-        fig, ax = plt.subplots(figsize=(7, 7), subplot_kw=dict(polar=True))
+        fig, ax = plt.subplots(figsize=(7.5, 7.5), subplot_kw=dict(polar=True))
         ax.plot(angles, values, 'o-', linewidth=2)
         ax.fill(angles, values, alpha=0.25)
         ax.set_yticklabels([])
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels(labels, fontsize=10)
-        ax.set_title(dimension)
+        ax.set_title(dimension, fontsize=14)
         fig.subplots_adjust(top=0.85, bottom=0.1)
 
         tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-        plt.savefig(tmpfile.name)
+        plt.savefig(tmpfile.name, dpi=150)
         charts[dimension] = tmpfile.name
         plt.close(fig)
     return charts
