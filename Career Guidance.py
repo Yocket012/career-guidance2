@@ -483,16 +483,16 @@ st.progress(min(progress, 1.0))
 if st.session_state.page < len(pages):
     dim_name, q_ids = pages[st.session_state.page]
     st.header(f"🔍 {dim_name} Assessment")
-    incomplete = False
 
     for q_id in q_ids:
         q_data = questions.get(q_id)
         if q_data:
             options = list(q_data["options"].keys())
+            default_index = options.index(responses[q_id]) if q_id in responses and responses[q_id] in options else None
             selected = st.radio(
                 f"**Q{q_id}.** {q_data['question']}",
                 options,
-                index=None if q_id not in responses else options.index(responses[q_id]),
+                index=default_index,
                 key=f"q_{q_id}"
             )
             responses[q_id] = selected if selected else None
