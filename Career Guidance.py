@@ -478,7 +478,7 @@ pages = [(dim, dim_labels[dim]) for dim in dim_labels]
 
 st.markdown(f"### Section {st.session_state.page + 1} of {len(pages)}")
 progress = (st.session_state.page + 1) / len(pages)
-st.progress(progress)
+st.progress(min(progress, 1.0))
 
 if st.session_state.page < len(pages):
     dim_name, q_ids = pages[st.session_state.page]
