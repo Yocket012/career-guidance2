@@ -342,6 +342,20 @@ dimension_map = {
     "Aptitude": list(range(51, 61))
 }
 
+career_domains = {
+    "STEM": ["Engineer", "Data Analyst", "AI Researcher", "Biotech Scientist"],
+    "Creative": ["UX Designer", "Animator", "Content Creator", "Filmmaker"],
+    "Social": ["Psychologist", "Policy Researcher", "Teacher", "NGO Worker"],
+    "Business": ["Entrepreneur", "Marketing Analyst", "Financial Consultant"]
+}
+
+university_domains = {
+    "STEM": ["MIT", "Stanford", "ETH Zurich", "IIT Bombay"],
+    "Creative": ["Parsons School of Design", "NID India", "SCAD", "RMIT"],
+    "Social": ["Sciences Po", "TISS", "LSE", "UCLA"],
+    "Business": ["Wharton", "INSEAD", "London Business School", "IIM Ahmedabad"]
+}
+
 def calculate_scores(responses):
     scores_by_dim = {}
     for dim, q_ids in dimension_map.items():
@@ -353,6 +367,15 @@ def calculate_scores(responses):
                 dim_scores[tag] = dim_scores.get(tag, 0) + weights[dim]
         scores_by_dim[dim] = dim_scores
     return scores_by_dim
+
+def recommend_domain(scores_by_dim):
+    summary = {}
+    interests = scores_by_dim.get("Interest", {})
+    top_interest = max(interests, key=interests.get) if interests else "General"
+    if top_interest in career_domains:
+        summary["Careers"] = career_domains[top_interest]
+        summary["Universities"] = university_domains[top_interest]
+    return summary
 
 def generate_split_radar_charts(scores_by_dim):
     charts = {}
@@ -367,14 +390,13 @@ def generate_split_radar_charts(scores_by_dim):
         angles += angles[:1]
 
         fig, ax = plt.subplots(figsize=(7, 7), subplot_kw=dict(polar=True))
-        fig.subplots_adjust(top=0.85, bottom=0.1)  # Adjust to prevent text cutoff
-
         ax.plot(angles, values, 'o-', linewidth=2)
         ax.fill(angles, values, alpha=0.25)
         ax.set_yticklabels([])
         ax.set_xticks(angles[:-1])
-        ax.set_xticklabels(labels)
+        ax.set_xticklabels(labels, fontsize=10)
         ax.set_title(dimension)
+        fig.subplots_adjust(top=0.85, bottom=0.1)
 
         tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
         plt.savefig(tmpfile.name)
@@ -390,7 +412,7 @@ def generate_summary(scores_by_dim):
             summary += f"\n- {dim}: Dominant trait = {top_area}"
     return summary
 
-def generate_pdf(student_name, scores_by_dim, chart_paths):
+def generate_pdf(student_name, scores_by_dim, chart_paths, recommendations):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
@@ -400,6 +422,15 @@ def generate_pdf(student_name, scores_by_dim, chart_paths):
     summary = generate_summary(scores_by_dim)
     for line in summary.strip().split('\n'):
         pdf.multi_cell(0, 8, txt=line)
+
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, "Suggested Career Tracks & Universities", ln=True, align='C')
+    pdf.set_font("Arial", size=12)
+    for section, items in recommendations.items():
+        pdf.multi_cell(0, 8, f"\n{section} Suggestions:")
+        for item in items:
+            pdf.multi_cell(0, 8, f"- {item}")
 
     for dim in dimension_map.keys():
         if dim in chart_paths:
