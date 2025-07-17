@@ -521,20 +521,20 @@ if st.session_state.page < len(pages):
         q_data = questions.get(q_id)
         if q_data:
             options = list(q_data["options"].keys())
-            default_idx = options.index(responses[q_id]) if q_id in responses and responses[q_id] in options else None
-if default_idx is not None:
-    selected = st.radio(
-        f"Q{q_id}. {q_data['question']}",
-        options,
-        index=default_idx,
-        key=f"q_{q_id}"
-    )
-else:
-    selected = st.radio(
-        f"Q{q_id}. {q_data['question']}",
-        options,
-        key=f"q_{q_id}"
-    )
+    default_idx = options.index(responses[q_id]) if q_id in responses and responses[q_id] in options else None
+    if default_idx is not None:
+        selected = st.radio(
+            f"Q{q_id}. {q_data['question']}",
+            options,
+            index=default_idx,
+            key=f"q_{q_id}"
+        )
+    else:
+        selected = st.radio(
+            f"Q{q_id}. {q_data['question']}",
+            options,
+            key=f"q_{q_id}"
+        )
 
             responses[q_id] = selected if selected else None
 
