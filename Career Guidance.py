@@ -324,6 +324,16 @@ questions = {
         "Balancing or budgeting": ["Numerical"]}}
 }
 
+# Updated dimension labels
+dim_labels = {
+    "Personality": list(range(1, 11)),
+    "Learning Style": list(range(11, 21)),
+    "Behaviour": list(range(21, 31)),
+    "Emotional": list(range(31, 41)),
+    "Interest": list(range(41, 51)),
+    "Aptitude": list(range(51, 61))
+}
+
 weights = {
     "Personality": 1.0,
     "Learning Style": 0.9,
@@ -480,14 +490,13 @@ if st.session_state.page < len(pages):
         if q_data:
             options = list(q_data["options"].keys())
             current_val = responses.get(q_id)
+            default_idx = options.index(current_val) if current_val in options else 0
             selected = st.radio(
                 f"Q{q_id}. {q_data['question']}",
                 options,
-                index=options.index(current_val) if current_val in options else None,
+                index=default_idx,
                 key=f"q_{q_id}"
             )
-            if not selected:
-                incomplete = True
             responses[q_id] = selected if selected else None
 
     if st.button("Next"):
