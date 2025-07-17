@@ -362,9 +362,10 @@ def calculate_scores(responses):
         dim_scores = {}
         for q_id in q_ids:
             selected = responses.get(q_id)
-            tags = questions[q_id]['options'].get(selected, [])
-            for tag in tags:
-                dim_scores[tag] = dim_scores.get(tag, 0) + weights[dim]
+            if selected:
+                tags = questions[q_id]['options'].get(selected, [])
+                for tag in tags:
+                    dim_scores[tag] = dim_scores.get(tag, 0) + weights[dim]
         scores_by_dim[dim] = dim_scores
     return scores_by_dim
 
@@ -415,7 +416,7 @@ def generate_split_radar_charts(scores_by_dim):
         ax.fill(angles, values, alpha=0.25)
         ax.set_yticklabels([])
         ax.set_xticks(angles[:-1])
-        ax.set_xticklabels(labels, fontsize=10)
+        ax.set_xticklabels(labels, fontsize=9, wrap=True)
         ax.set_title(dimension, fontsize=14)
         fig.subplots_adjust(top=0.85, bottom=0.1)
 
