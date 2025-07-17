@@ -467,107 +467,73 @@ def generate_pdf(student_name, scores_by_dim, chart_paths, recommendations):
     output_buffer.seek(0)
     return output_buffer
 
-# Streamlit app
-st.markdown("""
-    <style>
-    .stRadio > div > label {font-weight: 500; font-size: 16px;}
-    .stButton > button {width: 100%;}
-    </style>
-""", unsafe_allow_html=True)
+# UI logic and navigation will be handled after this section
 
-st.title("🧠 Career Guidance Psychometric Test")
-st.markdown("Answer all 60 questions to generate your personalised career insight report.")
-
-student_name = st.text_input("👤 Enter your full name:")
-
-if 'page' not in st.session_state:
-    st.session_state.page = 0
 if 'responses' not in st.session_state:
     st.session_state.responses = {}
+if 'page' not in st.session_state:
+    st.session_state.page = 0
 
 responses = st.session_state.responses
-
-pages = [
-    ("Personality", list(range(1, 11))),
-    ("Learning Style", list(range(11, 21))),
-    ("Behaviour", list(range(21, 31))),
-    ("Emotional", list(range(31, 41))),
-    ("Interest", list(range(41, 51))),
-    ("Aptitude", list(range(51, 61)))
-]
-
-# Progress bar and tracker
-if 0 <= st.session_state.page < len(pages):
-    progress = (st.session_state.page + 1) / len(pages)
-    st.progress(progress)
-    st.markdown(f"### Section {st.session_state.page + 1} of {len(pages)}")
-
-# Completion overview
-completed = [
-    all(q_id in responses and responses[q_id] is not None for q_id in q_ids)
-    for _, q_ids in pages
-]
-st.markdown("**Progress Check:**")
-st.markdown(" ".join([
-    f"✅ {name}" if done else f"⬜️ {name}"
-    for (name, _), done in zip(pages, completed)
-]))
+pages = [(dim, dimension_map[dim]) for dim in dimension_map]
 
 if st.session_state.page < len(pages):
     dim_name, q_ids = pages[st.session_state.page]
-    st.subheader(f"{dim_name} Questions")
-
+    st.header(f"{dim_name} Questions")
     incomplete = False
+
     for q_id in q_ids:
         q_data = questions.get(q_id)
         if q_data:
             options = list(q_data["options"].keys())
-    default_idx = options.index(responses[q_id]) if q_id in responses and responses[q_id] in options else None
-    if default_idx is not None:
-        selected = st.radio(
-            f"Q{q_id}. {q_data['question']}",
-            options,
-            index=default_idx,
-            key=f"q_{q_id}"
-        )
-    else:
-        selected = st.radio(
-            f"Q{q_id}. {q_data['question']}",
-            options,
-            key=f"q_{q_id}"
-        )
+            current_val = responses.get(q_id)
+            selected = st.radio(
+                f"Q{q_id}. {q_data['question']}",
+                options,
+                index=options.index(current_val) if current_val in options else None,
+                key=f"q_{q_id}"
+            )
+            if not selected:
+                incomplete = True
+            responses[q_id] = selected if selected else None
 
-    responses[q_id] = selected if selected else None
-
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col1:
-        if st.button("⬅️ Back") and st.session_state.page > 0:
-            st.session_state.page -= 1
-            st.rerun()
-    with col2:
-        if st.button("🔄 Reset"):
-            st.session_state.responses = {}
-            st.session_state.page = 0
-            st.rerun()
-    with col3:
-        if st.button("➡️ Next"):
-            if any(responses.get(q_id) is None for q_id in q_ids):
-                st.warning("Please answer all questions before proceeding.")
-            else:
-                st.session_state.page += 1
-                st.rerun()
-
-elif st.session_state.page == len(pages):
-    st.header("🎯 Review Your Dominant Traits")
-    scores_by_dim = calculate_scores(responses)
-    summary_text = generate_summary(scores_by_dim)
-    st.markdown("### Summary:")
-    st.text(summary_text)
-
-    if st.button("📄 Generate Career Report"):
-        if student_name and all(responses.get(q_id) in questions[q_id]['options'] for q_id in range(1, 61)):
-            chart_paths = generate_split_radar_charts(scores_by_dim)
-            pdf_bytes = generate_pdf(student_name, scores_by_dim, chart_paths)
-            st.download_button("⬇️ Download Your Career Report", pdf_bytes, file_name=f"{student_name.replace(' ', '_')}_Career_Report.pdf")
+    if st.button("Next"):
+        if any(responses.get(q_id) is None for q_id in q_ids):
+            st.warning("Please answer all questions before proceeding.")
         else:
-            st.warning("Please answer all questions and provide your name.")
+            st.session_state.page += 1
+            st.rerun()
+
+    if st.button("Back") and st.session_state.page > 0:
+        st.session_state.page -= 1
+        st.rerun()
+
+    if st.button("Reset"):
+        st.session_state.responses = {}
+        st.session_state.page = 0
+        st.rerun()
+
+else:
+    st.header("🎯 Review Your Dominant Traits")
+    name = st.text_input("Enter your name for the report:")
+    subject_scores = {}
+    with st.expander("📘 Enter your Class 9 & 10 Subject Scores"):
+        for subj in ["Math", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Economics"]:
+            subject_scores[subj] = st.number_input(f"{subj} Marks (%)", min_value=0, max_value=100, value=75)
+
+    if st.button("Generate Report") and name:
+        scores = calculate_scores(responses)
+        charts = generate_split_radar_charts(scores)
+        strengths, _ = get_subject_analysis(subject_scores)
+        majors = suggest_majors(strengths)
+        recommendations = recommend_domain(scores)
+        if majors:
+            recommendations["Suggested Majors"] = majors
+        pdf_bytes = generate_pdf(name, scores, charts, recommendations)
+        st.success("Report Generated Successfully!")
+        st.download_button("📄 Download Career Report", data=pdf_bytes, file_name="Career_Report.pdf", mime="application/pdf")
+
+    if st.button("Start Over"):
+        st.session_state.page = 0
+        st.session_state.responses = {}
+        st.rerun()
