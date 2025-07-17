@@ -476,13 +476,13 @@ if 'page' not in st.session_state:
 responses = st.session_state.responses
 pages = [(dim, dim_labels[dim]) for dim in dim_labels]
 
-st.markdown(f"### Section {st.session_state.page + 1} of {len(pages)}")
+st.markdown(f"## 🧭 Section {st.session_state.page + 1} of {len(pages)}")
 progress = (st.session_state.page + 1) / len(pages)
 st.progress(min(progress, 1.0))
 
 if st.session_state.page < len(pages):
     dim_name, q_ids = pages[st.session_state.page]
-    st.header(f"{dim_name} Questions")
+    st.header(f"🔍 {dim_name} Assessment")
     incomplete = False
 
     for q_id in q_ids:
@@ -490,27 +490,28 @@ if st.session_state.page < len(pages):
         if q_data:
             options = list(q_data["options"].keys())
             selected = st.radio(
-                f"Q{q_id}. {q_data['question']}",
+                f"**Q{q_id}.** {q_data['question']}",
                 options,
-                index=options.index(responses[q_id]) if q_id in responses and responses[q_id] in options else 0,
+                index=None if q_id not in responses else options.index(responses[q_id]),
                 key=f"q_{q_id}"
             )
             responses[q_id] = selected if selected else None
 
-    col1, col2, col3 = st.columns(3)
+    st.markdown("---")
+    col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
-        if st.button("Back") and st.session_state.page > 0:
+        if st.button("⬅️ Back") and st.session_state.page > 0:
             st.session_state.page -= 1
             st.rerun()
     with col2:
-        if st.button("Next"):
+        if st.button("Next ➡️"):
             if any(responses.get(q_id) is None for q_id in q_ids):
-                st.warning("Please answer all questions before proceeding.")
+                st.warning("⚠️ Please answer all questions before proceeding.")
             else:
                 st.session_state.page += 1
                 st.rerun()
     with col3:
-        if st.button("Reset"):
+        if st.button("🔄 Reset"):
             st.session_state.responses = {}
             st.session_state.page = 0
             st.rerun()
@@ -523,7 +524,7 @@ else:
         for subj in ["Math", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Economics"]:
             subject_scores[subj] = st.number_input(f"{subj} Marks (%)", min_value=0, max_value=100, value=75)
 
-    if st.button("Generate Report") and name:
+    if st.button("📝 Generate Report") and name:
         scores = calculate_scores(responses)
         charts = generate_split_radar_charts(scores)
         strengths, _ = get_subject_analysis(subject_scores)
@@ -532,10 +533,10 @@ else:
         if majors:
             recommendations["Suggested Majors"] = majors
         pdf_bytes = generate_pdf(name, scores, charts, recommendations)
-        st.success("Report Generated Successfully!")
+        st.success("✅ Report Generated Successfully!")
         st.download_button("📄 Download Career Report", data=pdf_bytes, file_name="Career_Report.pdf", mime="application/pdf")
 
-    if st.button("Start Over"):
+    if st.button("🔁 Start Over"):
         st.session_state.page = 0
         st.session_state.responses = {}
         st.rerun()
