@@ -324,7 +324,7 @@ questions = {
         "Balancing or budgeting": ["Numerical"]}}
 }
 
-# Updated dimension labels
+# Mapping dimensions to question IDs
 dim_labels = {
     "Personality": list(range(1, 11)),
     "Learning Style": list(range(11, 21)),
@@ -490,30 +490,31 @@ if st.session_state.page < len(pages):
         if q_data:
             options = list(q_data["options"].keys())
             current_val = responses.get(q_id)
-            default_idx = options.index(current_val) if current_val in options else 0
             selected = st.radio(
                 f"Q{q_id}. {q_data['question']}",
                 options,
-                index=default_idx,
+                index=options.index(current_val) if current_val in options else -1,
                 key=f"q_{q_id}"
             )
             responses[q_id] = selected if selected else None
 
-    if st.button("Next"):
-        if any(responses.get(q_id) is None for q_id in q_ids):
-            st.warning("Please answer all questions before proceeding.")
-        else:
-            st.session_state.page += 1
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("Back") and st.session_state.page > 0:
+            st.session_state.page -= 1
             st.rerun()
-
-    if st.button("Back") and st.session_state.page > 0:
-        st.session_state.page -= 1
-        st.rerun()
-
-    if st.button("Reset"):
-        st.session_state.responses = {}
-        st.session_state.page = 0
-        st.rerun()
+    with col2:
+        if st.button("Next"):
+            if any(responses.get(q_id) is None for q_id in q_ids):
+                st.warning("Please answer all questions before proceeding.")
+            else:
+                st.session_state.page += 1
+                st.rerun()
+    with col3:
+        if st.button("Reset"):
+            st.session_state.responses = {}
+            st.session_state.page = 0
+            st.rerun()
 
 else:
     st.header("🎯 Review Your Dominant Traits")
