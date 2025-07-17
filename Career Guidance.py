@@ -659,14 +659,16 @@ if 'page' not in st.session_state:
 responses = st.session_state.responses
 pages = [(dim, dim_labels[dim]) for dim in dim_labels]
 
-st.markdown(f"## \U0001F9ED Section {st.session_state.page + 1} of {len(pages)}")
-progress = (st.session_state.page + 1) / len(pages)
-st.progress(min(progress, 1.0))
+st.markdown(f"## 🧭 Section {st.session_state.page + 1} of {len(pages)}")
+progress = int((st.session_state.page + 1) / len(pages) * 100)
+st.progress(progress)
+st.markdown(f"**Progress:** {progress}% completed")
 
 if st.session_state.page < len(pages):
     dim_name, q_ids = pages[st.session_state.page]
-    st.header(f"\U0001F50D {dim_name} Assessment")
+    st.header(f"🔍 {dim_name} Assessment")
 
+    all_answered = True
     for q_id in q_ids:
         q_data = questions.get(q_id)
         if q_data:
@@ -674,6 +676,13 @@ if st.session_state.page < len(pages):
             selected = st.radio(f"**Q{q_id}.** {q_data['question']}", options, index=None, key=f"q_{q_id}")
             if selected:
                 responses[q_id] = selected
+            if not responses.get(q_id):
+                all_answered = False
+
+    if all_answered:
+        st.success("✅ All questions in this section answered.")
+    else:
+        st.info("ℹ️ Please answer all questions to proceed.")
 
     st.markdown("---")
     col1, col2, col3 = st.columns([1, 1, 1])
@@ -683,7 +692,7 @@ if st.session_state.page < len(pages):
             st.rerun()
     with col2:
         if st.button("Next ➡️"):
-            if any(responses.get(q_id) is None for q_id in q_ids):
+            if not all_answered:
                 st.warning("⚠️ Please answer all questions before proceeding.")
             else:
                 st.session_state.page += 1
