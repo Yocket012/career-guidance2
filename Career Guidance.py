@@ -333,15 +333,6 @@ weights = {
     "Aptitude": 1.2
 }
 
-dimension_map = {
-    "Personality": list(range(1, 11)),
-    "Learning Style": list(range(11, 21)),
-    "Behaviour": list(range(21, 31)),
-    "Emotional": list(range(31, 41)),
-    "Interest": list(range(41, 51)),
-    "Aptitude": list(range(51, 61))
-}
-
 career_domains = {
     "STEM": ["Engineer", "Data Analyst", "AI Researcher", "Biotech Scientist"],
     "Creative": ["UX Designer", "Animator", "Content Creator", "Filmmaker"],
@@ -358,7 +349,7 @@ university_domains = {
 
 def calculate_scores(responses):
     scores_by_dim = {}
-    for dim, q_ids in dimension_map.items():
+    for dim, q_ids in dim_labels.items():
         dim_scores = {}
         for q_id in q_ids:
             selected = responses.get(q_id)
@@ -454,7 +445,7 @@ def generate_pdf(student_name, scores_by_dim, chart_paths, recommendations):
         for item in items:
             pdf.multi_cell(0, 8, f"- {item}")
 
-    for dim in dimension_map.keys():
+    for dim in dim_labels.keys():
         if dim in chart_paths:
             pdf.add_page()
             pdf.set_font("Arial", 'B', 14)
@@ -467,15 +458,17 @@ def generate_pdf(student_name, scores_by_dim, chart_paths, recommendations):
     output_buffer.seek(0)
     return output_buffer
 
-# UI logic and navigation will be handled after this section
-
 if 'responses' not in st.session_state:
     st.session_state.responses = {}
 if 'page' not in st.session_state:
     st.session_state.page = 0
 
 responses = st.session_state.responses
-pages = [(dim, dimension_map[dim]) for dim in dimension_map]
+pages = [(dim, dim_labels[dim]) for dim in dim_labels]
+
+st.markdown(f"### Section {st.session_state.page + 1} of {len(pages)}")
+progress = (st.session_state.page + 1) / len(pages)
+st.progress(progress)
 
 if st.session_state.page < len(pages):
     dim_name, q_ids = pages[st.session_state.page]
