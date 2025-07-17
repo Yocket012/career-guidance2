@@ -7,6 +7,8 @@ from io import BytesIO
 import tempfile
 import os
 
+st.set_page_config(page_title="Career Guidance Test", layout="centered")
+
 # Define 60 psychometric questions (10 per dimension)
 questions = {
 # Personality Types
@@ -440,9 +442,10 @@ pages = [
 ]
 
 # Progress bar and tracker
-progress = (st.session_state.page + 1) / len(pages)
-st.progress(progress)
-st.markdown(f"### Section {st.session_state.page + 1} of {len(pages)}")
+if 0 <= st.session_state.page < len(pages):
+    progress = (st.session_state.page + 1) / len(pages)
+    st.progress(progress)
+    st.markdown(f"### Section {st.session_state.page + 1} of {len(pages)}")
 
 # Completion overview
 completed = [
@@ -467,10 +470,10 @@ if st.session_state.page < len(pages):
             selected = st.radio(
                 f"Q{q_id}. {q_data['question']}",
                 options,
-                index=options.index(responses[q_id]) if q_id in responses and responses[q_id] in options else None,
+                index=options.index(responses[q_id]) if q_id in responses and responses[q_id] in options else -1,
                 key=f"q_{q_id}"
             )
-            responses[q_id] = selected
+            responses[q_id] = selected if selected else None
 
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
