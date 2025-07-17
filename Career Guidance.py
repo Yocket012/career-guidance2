@@ -659,13 +659,30 @@ if 'page' not in st.session_state:
 responses = st.session_state.responses
 pages = [(dim, dim_labels[dim]) for dim in dim_labels]
 
-st.markdown(f"## 🧭 Section {st.session_state.page + 1} of {len(pages)}")
-progress = int((st.session_state.page + 1) / len(pages) * 100)
+# Section progress bar
+total_sections = len(pages)
+current_page = st.session_state.page
+progress = min(int((current_page + 1) / total_sections * 100), 100)  # Ensure it doesn't exceed 100
+st.markdown(f"## 🧭 Section {current_page + 1} of {total_sections}")
 st.progress(progress)
 st.markdown(f"**Progress:** {progress}% completed")
 
-if st.session_state.page < len(pages):
-    dim_name, q_ids = pages[st.session_state.page]
+# Section status summary with color-coded indicators
+st.markdown("### 📊 Section Completion Overview:")
+cols = st.columns(total_sections)
+for idx, (dim, q_ids) in enumerate(pages):
+    completed = all(q_id in responses for q_id in q_ids)
+    with cols[idx]:
+        st.markdown(
+            f"<div style='text-align:center; padding:4px; border-radius:10px; background-color:{'#d4edda' if completed else '#f8d7da'};'>"
+            f"<strong>{dim}</strong><br>{'✅' if completed else '⏳'}</div>",
+            unsafe_allow_html=True
+        )
+
+# Assessment page logic
+if current_page < total_sections:
+    dim_name, q_ids = pages[current_page]
+    st.markdown("---")
     st.header(f"🔍 {dim_name} Assessment")
 
     all_answered = True
@@ -689,6 +706,7 @@ if st.session_state.page < len(pages):
     with col1:
         if st.button("⬅️ Back") and st.session_state.page > 0:
             st.session_state.page -= 1
+            time.sleep(0.3)
             st.rerun()
     with col2:
         if st.button("Next ➡️"):
@@ -696,11 +714,13 @@ if st.session_state.page < len(pages):
                 st.warning("⚠️ Please answer all questions before proceeding.")
             else:
                 st.session_state.page += 1
+                time.sleep(0.3)
                 st.rerun()
     with col3:
         if st.button("🔄 Reset"):
             st.session_state.responses = {}
             st.session_state.page = 0
+            time.sleep(0.3)
             st.rerun()
 
 else:
@@ -728,4 +748,5 @@ else:
     if st.button("🔁 Start Over"):
         st.session_state.page = 0
         st.session_state.responses = {}
+        time.sleep(0.3)
         st.rerun()
