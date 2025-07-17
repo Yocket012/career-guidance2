@@ -366,7 +366,9 @@ def generate_split_radar_charts(scores_by_dim):
         values += values[:1]
         angles += angles[:1]
 
-        fig, ax = plt.subplots(figsize=(5, 5), subplot_kw=dict(polar=True))
+        fig, ax = plt.subplots(figsize=(7, 7), subplot_kw=dict(polar=True))
+fig.subplots_adjust(top=0.85, bottom=0.1)  # Adjust to prevent text cutoff
+
         ax.plot(angles, values, 'o-', linewidth=2)
         ax.fill(angles, values, alpha=0.25)
         ax.set_yticklabels([])
